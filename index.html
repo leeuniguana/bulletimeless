@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>誰有時間看公報｜新北市議員第 8 選區</title>
+<meta name="description" content="公報 12 個人、幾百條政見，誰有時間看？回答幾題生活小麻煩，看看哪幾位候選人的政見跟你最合。">
+<meta property="og:title" content="誰有時間看公報 🗳️">
+<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。土城・樹林・三峽・鶯歌">
+<meta property="og:type" content="website">
+<style>
+:root{--bg:#fff8ec;--ink:#2b2622;--sub:#7a6e64;--main:#e8613c;--main2:#ffd9a8;--card:#fff;--line:#eadfce;--ok:#2f9e6b}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.6}
+main{max-width:520px;margin:0 auto;padding:20px 16px 64px;min-height:100vh}
+h1{font-size:30px;margin:12px 0 4px;line-height:1.3}
+h2{font-size:22px;margin:8px 0 6px;line-height:1.4}
+p{margin:6px 0}
+.sub{color:var(--sub);font-size:14px}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:14px;font-size:17px;font-weight:700;background:var(--main);color:#fff;margin-top:18px;cursor:pointer}
+.btn:disabled{background:#d8cbbb;cursor:default}
+.btn.ghost{background:transparent;color:var(--main);border:2px solid var(--main)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{border:2px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-size:15px;cursor:pointer;user-select:none}
+.chip.on{border-color:var(--main);background:var(--main2);font-weight:700}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:4px 0 14px}
+.bar i{display:block;height:100%;background:var(--main);transition:width .3s}
+.jar{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0}
+.jar .nm{flex:0 0 118px;font-size:15px}
+.jar .meter{flex:1;height:10px;background:var(--line);border-radius:5px;overflow:hidden}
+.jar .meter i{display:block;height:100%;background:#f2a541}
+.jar .v{flex:0 0 40px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.jar button{flex:0 0 34px;height:34px;border-radius:50%;border:2px solid var(--line);background:#fff;font-size:18px;font-weight:700;cursor:pointer;color:var(--ink)}
+.purse{position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:2;font-weight:700}
+.event{background:var(--card);border-radius:18px;padding:18px;font-size:19px;font-weight:700;border:2px solid var(--line);margin:8px 0 14px}
+.opt{display:block;width:100%;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:14px;margin:10px 0;font-size:16px;cursor:pointer;color:var(--ink)}
+.opt:active,.opt.on{border-color:var(--main);background:var(--main2)}
+.res{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;margin:14px 0}
+.res.r1{border-color:var(--main)}
+.rank{font-size:14px;color:var(--sub)}
+.big{font-size:34px;font-weight:800;color:var(--main);line-height:1.2}
+.who{font-size:20px;font-weight:800}
+details{margin-top:8px}
+summary{cursor:pointer;color:var(--main);font-weight:700}
+ul{padding-left:20px;margin:6px 0}
+li{margin:4px 0;font-size:14px}
+.cardme{background:linear-gradient(135deg,#ffcf8a,#ff8f6b);border-radius:18px;padding:18px;color:#3a1d10;margin:14px 0}
+.cardme .t{font-size:13px;opacity:.8}
+.cardme .tags{font-size:20px;font-weight:800;margin:6px 0}
+.vote{background:#2b2622;color:#fff;border-radius:18px;padding:18px;margin:14px 0}
+.vote b{color:#ffd9a8}
+.note{font-size:12px;color:var(--sub);margin-top:18px}
+.hide{display:none}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2b2622;color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.on{opacity:1}
+a{color:var(--main)}
+</style>
+</head>
+<body>
+<main id="app"><p class="sub">載入中…</p></main>
+<div class="toast" id="toast"></div>
+
+<script>
+// 選區資料檔：之後擴充其他選區，只要換這裡的檔名（或用 ?d=a03 指定）
+const DISTRICT = new URLSearchParams(location.search).get('d') || 'f08';
+const ROUNDS = 12;           // 一般事件題數（不含立場題、彩蛋題）
+const MAX_TAGS = 5;
+const STEP = 5;              // 硬幣每次加減 5 元
+
+const $ = s => document.querySelector(s);
+const app = $('#app');
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 1800); };
+
+let D, S;   // D = 選區資料；S = 這一局的狀態（只存在玩家自己的瀏覽器裡，不會送出去）
+
+fetch(`data/district-${DISTRICT}.json`)
+  .then(r => { if (!r.ok) throw new Error(`找不到選區資料 district-${DISTRICT}.json（HTTP ${r.status}）`); return r.json(); })
+  .then(d => { D = d; reset(); new Date() >= new Date(D.vote.closeAt) && !location.search.includes('preview') ? closed() : home(); })
+  .catch(e => { app.innerHTML = `<h2>😵 資料載入失敗</h2><p>${esc(e.message)}</p><p class="sub">如果你是直接雙擊打開 index.html，瀏覽器會擋住資料檔。請放上 GitHub Pages，或在資料夾裡執行 <code>python -m http.server</code> 再打開 http://localhost:8000</p>`; });
+
+function reset() { S = { area: null, tags: [], coins: {}, queue: [], qi: 0, shown: {}, picked: {}, log: [] }; }
+
+// ---------- 投票日之後 ----------
+function closed() {
+  app.innerHTML = `<h1>誰有時間看公報</h1><h2>🗳️ 投票時間到了</h2>
+  <p>${D.vote.date.replace(/-/g, '/')} 是投票日，遊戲已經關閉。</p>
+  <p>謝謝大家來玩！記得自己去看<a href="https://www.cec.gov.tw/" target="_blank" rel="noopener">中選會的選舉公報</a>。</p>`;
+}
+
+// ---------- 開場 ----------
+function home() {
+  app.innerHTML = `
+  <p class="sub">${esc(D.title)}｜${D.areas.map(a => a.replace('區', '')).join('・')}</p>
+  <h1>誰有時間看公報 🗳️</h1>
+  <p>公報 ${D.candidates.length} 個人、幾百條政見，說真的，誰有時間看？</p>
+  <p>回答幾題生活小麻煩，翻開<b>不具名</b>的解方卡，<br>玩完才揭曉誰的政見跟你最合。</p>
+  <p class="sub">⏱️ 大約 5 分鐘｜📵 你的答案不會離開這台手機</p>
+  <h2 style="margin-top:22px">你住哪一區？</h2>
+  <p class="sub">人在外地、戶籍在這裡的話，選戶籍所在的區</p>
+  <div class="chips">${D.areas.map(a => `<span class="chip" data-a="${a}">${a}</span>`).join('')}</div>
+  <button class="btn" id="go" disabled>開始</button>`;
+  app.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    app.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+    c.classList.add('on'); S.area = c.dataset.a; $('#go').disabled = false;
+  });
+  $('#go').onclick = tagsPage;
+}
+
+// ---------- 第 0 關：斜槓標籤 ----------
+function tagsPage() {
+  app.innerHTML = `
+  <div class="bar"><i style="width:10%"></i></div>
+  <h2>你是哪一種斜槓人生？</h2>
+  <p class="sub">選出符合你的標籤，最多 ${MAX_TAGS} 個。可以同時是新手爸媽又是捷運受害者 😮‍💨</p>
+  <div class="chips">${D.tags.map((t, i) => `<span class="chip${S.tags.includes(i) ? ' on' : ''}" data-i="${i}">${esc(t.name)}</span>`).join('')}</div>
+  <p class="sub" id="cnt"></p>
+  <button class="btn" id="go">下一步</button>`;
+  const upd = () => { $('#cnt').textContent = `已選 ${S.tags.length} / ${MAX_TAGS}`; $('#go').disabled = !S.tags.length; };
+  app.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    const i = +c.dataset.i, k = S.tags.indexOf(i);
+    if (k >= 0) S.tags.splice(k, 1);
+    else if (S.tags.length >= MAX_TAGS) return toast(`最多 ${MAX_TAGS} 個，斜槓太多會累 😵`);
+    else S.tags.push(i);
+    c.classList.toggle('on'); upd();
+  });
+  upd();
+  $('#go').onclick = () => { S.coins = presetCoins(); coinsPage(); };
+}
+
+// 依標籤先分好硬幣：每罐先放 1 份底，每個標籤替它的罐子加 4 份（兩個罐子就各 2 份），換算成 100 元、以 5 元為單位
+function presetCoins() {
+  const w = {}; D.jars.forEach(j => w[j.k] = 1);
+  S.tags.forEach(i => { const js = D.tags[i].jars; js.forEach(k => w[k] += 4 / js.length); });
+  const sum = Object.values(w).reduce((a, b) => a + b, 0);
+  const c = {}; D.jars.forEach(j => c[j.k] = Math.max(STEP, Math.round(w[j.k] / sum * 100 / STEP) * STEP));
+  let diff = 100 - Object.values(c).reduce((a, b) => a + b, 0);
+  while (diff !== 0) {   // 四捨五入後補差額，總數一定是 100
+    const ks = Object.keys(c).sort((a, b) => c[b] - c[a]);
+    const k = diff > 0 ? ks[0] : ks.find(k => c[k] > STEP);
+    c[k] += diff > 0 ? STEP : -STEP; diff += diff > 0 ? -STEP : STEP;
+  }
+  return c;
+}
+
+// ---------- 第 2 關：100 元預算 ----------
+function coinsPage() {
+  const left = () => 100 - Object.values(S.coins).reduce((a, b) => a + b, 0);
+  const draw = () => {
+    app.innerHTML = `
+    <div class="bar"><i style="width:22%"></i></div>
+    <h2>你有 100 元，要花在哪？</h2>
+    <p>嗯…這是你嗎？不像的話把硬幣拖一拖 🪙</p>
+    <div class="purse">💰 錢包剩 <span>${left()}</span> 元</div>
+    ${D.jars.map(j => `<div class="jar"><span class="nm">${esc(j.name)}</span>
+      <button data-k="${j.k}" data-d="-1" aria-label="減少">−</button>
+      <span class="meter"><i style="width:${S.coins[j.k]}%"></i></span>
+      <span class="v">${S.coins[j.k]}</span>
+      <button data-k="${j.k}" data-d="1" aria-label="增加">＋</button></div>`).join('')}
+    <p class="sub">每按一下 ${STEP} 元。想加某一罐，要先從別罐拿出來。</p>
+    <button class="btn" id="go"${left() === 100 ? ' disabled' : ''}>就這樣，出題吧</button>
+    <button class="btn ghost" id="back">回去改標籤</button>`;
+    app.querySelectorAll('.jar button').forEach(b => b.onclick = () => {
+      const k = b.dataset.k, d = +b.dataset.d * STEP;
+      if (d > 0 && left() < STEP) return toast('錢包空了，先從別罐拿一點出來');
+      if (d < 0 && S.coins[k] <= 0) return;
+      S.coins[k] += d; draw();
+    });
+    $('#go').onclick = () => { if (left() > 0 && !confirm(`還有 ${left()} 元沒花，沒關係嗎？（不影響計分）`)) return; buildQueue(); question(); };
+    $('#back').onclick = tagsPage;
+  };
+  draw();
+}
+
+// ---------- 出題：有硬幣的罐子至少 1 題，剩下依硬幣比例抽 ----------
+function buildQueue() {
+  const byJar = {}; D.events.forEach(e => (byJar[e.jar] = byJar[e.jar] || []).push(e));
+  const ks = D.jars.map(j => j.k).filter(k => S.coins[k] > 0 && byJar[k]);
+  const n = {}; ks.forEach(k => n[k] = 1);
+  let rest = ROUNDS - ks.length;
+  while (rest > 0) {
+    const pool = ks.filter(k => n[k] < byJar[k].length); if (!pool.length) break;
+    let r = Math.random() * pool.reduce((a, k) => a + S.coins[k], 0);
+    const k = pool.find(k => (r -= S.coins[k]) < 0) || pool[pool.length - 1];
+    n[k]++; rest--;
+  }
+  let q = []; ks.forEach(k => q = q.concat(shuffle(byJar[k]).slice(0, n[k])));
+  q = shuffle(q);
+  (byJar.V || []).forEach(v => q.splice(Math.floor(Math.random() * (q.length + 1)), 0, v));   // 立場題每人必出
+  const egg = D.eggs[Math.floor(Math.random() * D.eggs.length)];
+  q.push({ id: 'EGG', egg: true, text: egg.text, cards: [{ text: egg.card, cands: egg.cands, rows: egg.rows }] });
+  S.queue = q; S.qi = 0; S.shown = {}; S.picked = {}; S.log = [];
+}
+
+// ---------- 第 1 關：生活事件 ----------
+function question() {
+  const e = S.queue[S.qi];
+  if (!e) return result();
+  const total = S.queue.length;
+  const cards = e.egg ? e.cards : shuffle(e.cards);
+  app.innerHTML = `
+  <div class="bar"><i style="width:${30 + 65 * S.qi / total}%"></i></div>
+  <p class="sub">第 ${S.qi + 1} / ${total} 題${e.jar === 'V' ? '｜🧭 立場題' : ''}${e.egg ? '｜🥚 彩蛋題（不計分）' : ''}</p>
+  <div class="event">${esc(e.text)}</div>
+  <p class="sub">${e.egg ? '這題只有一張卡…' : '你最想要哪一個解方？'}</p>
+  ${cards.map((c, i) => `<button class="opt" data-i="${i}">${esc(c.text)}</button>`).join('')}
+  ${e.egg ? '' : '<button class="btn ghost" id="skip">都不想要，跳過</button>'}`;
+  app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+    const c = cards[+b.dataset.i];
+    if (e.egg) {
+      app.querySelector('.opt').outerHTML = `<div class="event" style="font-size:16px">😆 這題有 <b>${c.cands.length} 位候選人</b>都提過「${esc(c.text)}」，選誰都一樣！</div>`;
+      app.insertAdjacentHTML('beforeend', '<button class="btn" id="go">看結果 🎁</button>');
+      $('#go').onclick = () => { S.qi++; result(); };
+      return;
+    }
+    answer(e, cards, c);
+  });
+  const sk = $('#skip'); if (sk) sk.onclick = () => answer(e, cards, null);
+}
+
+function answer(e, cards, chosen) {
+  cards.forEach(c => c.cands.forEach(n => S.shown[n] = (S.shown[n] || 0) + 1));
+  if (chosen) { chosen.cands.forEach(n => S.picked[n] = (S.picked[n] || 0) + 1); S.log.push({ e, c: chosen }); }
+  S.qi++; question();
+}
+
+// ---------- 計分（全部在這台裝置上算） ----------
+function cosine(a, b) {
+  let ab = 0, aa = 0, bb = 0;
+  a.forEach((x, i) => { ab += x * b[i]; aa += x * x; bb += b[i] * b[i]; });
+  return aa && bb ? ab / Math.sqrt(aa * bb) : 0;
+}
+function score() {
+  const mine = D.jars.map(j => S.coins[j.k] || 0);
+  return D.candidates.map(c => {
+    const prof = D.profiles[c.no];
+    const budget = cosine(mine, prof);                                                // 預算分：硬幣分配 vs 政見重心
+    const card = ((S.picked[c.no] || 0) + 0.5) / ((S.shown[c.no] || 0) + 1);          // 卡片分：從 50% 起跳
+    return { ...c, prof, budget, card, total: 0.5 * budget + 0.5 * card };
+  }).sort((a, b) => b.total - a.total);
+}
+
+// ---------- 結算 ----------
+function result() {
+  const all = score(), top = all.slice(0, 3);
+  const pct = x => Math.round(x * 100) + '%';
+  const tagNames = S.tags.map(i => D.tags[i].name);
+  const myTop = D.jars.map(j => [j.name, S.coins[j.k]]).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const weekend = tagNames.some(t => t.includes('週末才回家'));
+  const P = D.policies;
+
+  app.innerHTML = `
+  <div class="bar"><i style="width:100%"></i></div>
+  <h2>🎁 開盲盒！跟你最合的是…</h2>
+  <p class="sub">只比對公報上寫的內容，不代表候選人過去的實際表現，也不能取代你自己的判斷。</p>
+  ${top.map((c, r) => {
+    const mineCards = S.log.filter(x => x.c.cands.includes(c.no));
+    const jarTop = D.jars.map((j, i) => [j.name, c.prof[i]]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const sum = c.prof.reduce((a, b) => a + b, 0);
+    return `<div class="res${r === 0 ? ' r1' : ''}">
+      <div class="rank">第 ${r + 1} 名</div>
+      <div class="big">${pct(c.total)}</div>
+      <div class="who">${c.no} 號 ${esc(c.name)}</div>
+      <div class="sub">${esc(c.party === '無' ? '無黨籍' : c.party)}</div>
+      <details><summary>這個分數怎麼來的？</summary>
+        <p><b>預算分 ${pct(c.budget)}</b>（佔一半）：你的硬幣分配跟他的政見重心像不像。<br>
+        他的政見重心：${jarTop.map(x => `${esc(x[0])} ${Math.round(x[1] / sum * 100)}%`).join('、')}</p>
+        <p><b>卡片分 ${pct(c.card)}</b>（佔一半）：他的卡出現 ${S.shown[c.no] || 0} 次，你選了 ${S.picked[c.no] || 0} 次。</p>
+        ${mineCards.length ? `<p>你選中的卡，對應公報原文：</p><ul>${mineCards.map(x => `<li>「${esc(x.c.text)}」<br><span class="sub">${x.c.rows.filter(i => P[i] && P[i].c === c.no).map(i => esc(P[i].t)).join('；')}</span></li>`).join('')}</ul>` : '<p class="sub">這次沒有選到他的卡。</p>'}
+        ${D.ocrCands.includes(c.no) ? '<p class="sub">⚠️ 這位候選人的政見在公報上是圖片，以上文字經 OCR 摘要，以公報原文為準。</p>' : ''}
+      </details></div>`;
+  }).join('')}
+
+  <div class="cardme">
+    <div class="t">我的斜槓人生卡</div>
+    <div class="tags">${tagNames.map(esc).join(' ／ ')}</div>
+    <div>最在意：${myTop.map(x => `${esc(x[0])} ${x[1]} 元`).join('、')}</div>
+    <div class="t" style="margin-top:6px">${esc(S.area || '')}｜誰有時間看公報</div>
+  </div>
+
+  <div class="vote">
+    <div style="font-size:18px;font-weight:800">🗳️ 記得去投票</div>
+    <p><b>${D.vote.date.slice(5).replace('-', '/')}（六）${D.vote.time}</b></p>
+    <p>記得帶 ${esc(D.vote.bring)}</p>
+    ${weekend ? '<p>🧳 週末才回家的人，這週記得回家喔！</p>' : ''}
+  </div>
+
+  <button class="btn" id="share">分享給朋友</button>
+  <button class="btn ghost" id="again">再玩一次</button>
+  <p class="note">📵 你的作答和配對結果只在這台裝置上計算，沒有送到任何地方。<br>
+  計分規則和完整對照表都公開在 <a href="https://github.com/" id="repo" target="_blank" rel="noopener">GitHub</a>，歡迎檢查。<br>
+  資料來源：${esc(D.source)}</p>`;
+
+  $('#again').onclick = () => { reset(); home(); };
+  $('#share').onclick = async () => {
+    const data = { title: '誰有時間看公報', text: '這些政見不告訴你是誰的，玩完才揭曉 🗳️', url: location.origin + location.pathname };
+    try { if (navigator.share) await navigator.share(data); else { await navigator.clipboard.writeText(data.url); toast('網址已複製'); } } catch (_) {}
+  };
+  // 自動連到 repo：https://帳號.github.io/bulletimeless/ → https://github.com/帳號/bulletimeless
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/);
+  if (m) $('#repo').href = `https://github.com/${m[1]}${location.pathname.replace(/\/[^/]*$/, '')}`;
+  window.scrollTo(0, 0);
+}
+</script>
+
+<!-- Cloudflare Web Analytics：只統計瀏覽次數、來源、裝置，不含任何作答內容 -->
+<!-- 把下面這行換成 Cloudflare 後台給你的那一行（token 換成你的） -->
+<!-- <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "你的TOKEN"}'></script> -->
+</body>
+</html>
