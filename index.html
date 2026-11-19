@@ -61,9 +61,10 @@ a{color:var(--main)}
 <div class="toast" id="toast"></div>
 
 <script>
-// 選區資料檔：之後擴充其他選區，只要換這裡的檔名（或用 ?d=a03 指定）
-const DISTRICT = new URLSearchParams(location.search).get('d') || 'f08';
-const ROUNDS = 12;           // 一般事件題數（不含立場題、彩蛋題）
+// 選區：data/districts.json 是目錄；網址加 ?d=a05 可以只顯示某個選區（貼到各地社團、分開看流量用）
+const ONLY = new URLSearchParams(location.search).get('d');
+let IDX;                     // 選區目錄
+const rounds = () => D.rounds || 12;   // 一般事件題數（不含立場題、彩蛋題），寫在各選區 json
 const MAX_TAGS = 5;
 const STEP = 5;              // 硬幣每次加減 5 元
 
@@ -75,37 +76,52 @@ const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('
 
 let D, S;   // D = 選區資料；S = 這一局的狀態（只存在玩家自己的瀏覽器裡，不會送出去）
 
-fetch(`data/district-${DISTRICT}.json`)
-  .then(r => { if (!r.ok) throw new Error(`找不到選區資料 district-${DISTRICT}.json（HTTP ${r.status}）`); return r.json(); })
-  .then(d => { D = d; reset(); new Date() >= new Date(D.vote.closeAt) && !location.search.includes('preview') ? closed() : home(); })
-  .catch(e => { app.innerHTML = `<h2>😵 資料載入失敗</h2><p>${esc(e.message)}</p><p class="sub">如果你是直接雙擊打開 index.html，瀏覽器會擋住資料檔。請放上 GitHub Pages，或在資料夾裡執行 <code>python -m http.server</code> 再打開 http://localhost:8000</p>`; });
+const loadFail = e => { app.innerHTML = `<h2>😵 資料載入失敗</h2><p>${esc(e.message)}</p><p class="sub">如果你是直接雙擊打開 index.html，瀏覽器會擋住資料檔。請放上 GitHub Pages，或在資料夾裡執行 <code>python -m http.server</code> 再打開 http://localhost:8000</p>`; };
+const getJSON = f => fetch(f).then(r => { if (!r.ok) throw new Error(`找不到 ${f}（HTTP ${r.status}）`); return r.json(); });
+
+getJSON('data/districts.json')
+  .then(x => { IDX = x; if (ONLY) IDX.districts = IDX.districts.filter(d => d.id === ONLY);
+    if (!IDX.districts.length) throw new Error(`沒有這個選區：${ONLY}`);
+    new Date() >= new Date(IDX.closeAt) && !location.search.includes('preview') ? closed() : home(); })
+  .catch(loadFail);
 
 function reset() { S = { area: null, tags: [], coins: {}, queue: [], qi: 0, shown: {}, picked: {}, log: [], hist: [], order: {} }; }
 
 // ---------- 投票日之後 ----------
 function closed() {
   app.innerHTML = `<h1>誰有時間看公報</h1><h2>🗳️ 投票時間到了</h2>
-  <p>${D.vote.date.replace(/-/g, '/')} 是投票日，遊戲已經關閉。</p>
+  <p>${IDX.voteDate.replace(/-/g, '/')} 是投票日，遊戲已經關閉。</p>
   <p>謝謝大家來玩！記得自己去看<a href="https://www.cec.gov.tw/" target="_blank" rel="noopener">中選會的選舉公報</a>。</p>`;
 }
 
 // ---------- 開場 ----------
 function home() {
+  reset();
+  const cities = [...new Set(IDX.districts.map(d => d.city))];
   app.innerHTML = `
-  <p class="sub">${esc(D.title)}｜${D.areas.map(a => a.replace('區', '')).join('・')}</p>
+  <p class="sub">${IDX.title}</p>
   <h1>誰有時間看公報 🗳️</h1>
-  <p>公報 ${D.candidates.length} 個人、幾百條政見，說真的，誰有時間看？</p>
+  <p>公報十幾個人、幾百條政見，說真的，誰有時間看？</p>
   <p>回答幾題生活小麻煩，翻開<b>不具名</b>的解方卡，<br>玩完才揭曉誰的政見跟你最合。</p>
   <p class="sub">⏱️ 大約 5 分鐘｜📵 你的答案不會離開這台手機</p>
   <h2 style="margin-top:22px">你住哪一區？</h2>
   <p class="sub">人在外地、戶籍在這裡的話，選戶籍所在的區</p>
-  <div class="chips">${D.areas.map(a => `<span class="chip" data-a="${a}">${a}</span>`).join('')}</div>
+  ${cities.map(c => `<p style="margin-top:14px"><b>${esc(c)}</b></p><div class="chips">${IDX.districts.filter(d => d.city === c).map(d =>
+      d.areas.map(a => `<span class="chip" data-d="${d.id}" data-a="${esc(a)}">${esc(a)}</span>`).join('')).join('')}</div>`).join('')}
+  <p class="sub" id="dname"></p>
   <button class="btn" id="go" disabled>開始</button>`;
+  let pickD = null;
   app.querySelectorAll('.chip').forEach(c => c.onclick = () => {
     app.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
-    c.classList.add('on'); S.area = c.dataset.a; $('#go').disabled = false;
+    c.classList.add('on'); S.area = c.dataset.a; pickD = c.dataset.d; $('#go').disabled = false;
+    const d = IDX.districts.find(x => x.id === pickD);
+    $('#dname').textContent = `→ ${d.city}議員${d.name}（${d.areas.map(a => a.replace('區', '')).join('・')}）`;
   });
-  $('#go').onclick = tagsPage;
+  $('#go').onclick = () => {
+    $('#go').disabled = true; $('#go').textContent = '載入中…';
+    const area = S.area;
+    getJSON(`data/district-${pickD}.json`).then(d => { D = d; S.area = area; tagsPage(); }).catch(loadFail);
+  };
 }
 
 // ---------- 第 0 關：斜槓標籤 ----------
@@ -178,7 +194,7 @@ function buildQueue() {
   const byJar = {}; D.events.forEach(e => (byJar[e.jar] = byJar[e.jar] || []).push(e));
   const ks = D.jars.map(j => j.k).filter(k => byJar[k]);
   const n = {}; ks.forEach(k => n[k] = 1);
-  let rest = ROUNDS - ks.length;
+  let rest = rounds() - ks.length;
   while (rest > 0) {
     const pool = ks.filter(k => n[k] < byJar[k].length); if (!pool.length) break;
     const wt = k => (S.coins[k] || 0) + 0.001;   // 沒放硬幣的罐子幾乎不會多抽，但硬幣全滿時不會卡住
@@ -195,50 +211,71 @@ function buildQueue() {
 }
 
 // ---------- 第 1 關：生活事件 ----------
+// chosen 一律是陣列：[] = 跳過；一般題 1 張；pick=2 的題目固定 2 張
 function question() {
   const e = S.queue[S.qi];
   if (!e) return result();
-  const total = S.queue.length;
+  const total = S.queue.length, need = e.pick || 1;
   const cards = S.order[S.qi] || (S.order[S.qi] = e.egg ? e.cards : shuffle(e.cards));
   app.innerHTML = `
   <div class="bar"><i style="width:${30 + 65 * S.qi / total}%"></i></div>
   <p class="sub">第 ${S.qi + 1} / ${total} 題${e.jar === 'V' ? '｜🧭 立場題' : ''}${e.egg ? '｜🥚 彩蛋題（不計分）' : ''}</p>
   <div class="event">${esc(e.text)}</div>
-  <p class="sub">${e.egg ? '這題只有一張卡…' : '你最想要哪一個解方？'}</p>
+  <p class="sub">${e.egg ? '這題只有一張卡…' : need > 1 ? `選項比較多，這題要<b>選 ${need} 個</b>你最想要的` : '你最想要哪一個解方？'}</p>
   ${cards.map((c, i) => `<button class="opt" data-i="${i}">${esc(c.text)}</button>`).join('')}
+  ${need > 1 ? `<button class="btn" id="ok" disabled>選好了（0 / ${need}）</button>` : ''}
   ${e.egg ? '' : '<button class="btn ghost" id="skip">都不想要，跳過</button>'}
   <button class="btn ghost" id="prev">← ${S.qi ? '上一題' : '回去改硬幣'}</button>`;
-  app.querySelectorAll('.opt').forEach((b, i) => { if (S.redo && S.redo.chosen === cards[i]) b.classList.add('on'); });
-  if (S.redo && S.redo.chosen === null && $('#skip')) $('#skip').textContent = '都不想要，跳過（你上次選這個）';
-  S.redo = null;
+  const redo = S.redo; S.redo = null;
+  const opts = [...app.querySelectorAll('.opt')];
+  if (redo && !redo.chosen.length && $('#skip')) $('#skip').textContent = '都不想要，跳過（你上次選這個）';
   $('#prev').onclick = goBack;
-  app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
-    const c = cards[+b.dataset.i];
-    if (e.egg) {
-      app.querySelector('.opt').outerHTML = `<div class="event" style="font-size:16px">😆 這題有 <b>${c.cands.length} 位候選人</b>都提過「${esc(c.text)}」，選誰都一樣！</div>`;
+  const sk = $('#skip'); if (sk) sk.onclick = () => answer(e, cards, []);
+
+  if (e.egg) {
+    opts[0].onclick = () => {
+      const c = cards[0];
+      opts[0].outerHTML = `<div class="event" style="font-size:16px">😆 這題有 <b>${c.cands.length} 位候選人</b>都提過「${esc(c.text)}」，選誰都一樣！</div>`;
       app.insertAdjacentHTML('beforeend', '<button class="btn" id="go">看結果 🎁</button>');
       $('#go').onclick = () => { S.qi++; result(); };
       const pv = $('#prev'); if (pv) pv.remove();
-      return;
-    }
-    answer(e, cards, c);
+    };
+    return;
+  }
+  if (need === 1) {
+    opts.forEach((b, i) => { if (redo && redo.chosen[0] === cards[i]) b.classList.add('on'); b.onclick = () => answer(e, cards, [cards[i]]); });
+    return;
+  }
+  // 選 2 張：點一下選、再點一下取消；選滿 2 張才能按「選好了」
+  let sel = redo ? redo.chosen.map(c => cards.indexOf(c)).filter(i => i >= 0) : [];
+  const upd = () => {
+    opts.forEach((b, i) => b.classList.toggle('on', sel.includes(i)));
+    $('#ok').disabled = sel.length !== need; $('#ok').textContent = `選好了（${sel.length} / ${need}）`;
+  };
+  opts.forEach((b, i) => b.onclick = () => {
+    const k = sel.indexOf(i);
+    if (k >= 0) sel.splice(k, 1);
+    else if (sel.length >= need) return toast(`這題選 ${need} 個就好，先取消一個`);
+    else sel.push(i);
+    upd();
   });
-  const sk = $('#skip'); if (sk) sk.onclick = () => answer(e, cards, null);
+  $('#ok').onclick = () => answer(e, cards, sel.map(i => cards[i]));
+  upd();
 }
 
 function answer(e, cards, chosen) {
   cards.forEach(c => c.cands.forEach(n => S.shown[n] = (S.shown[n] || 0) + 1));
-  if (chosen) { chosen.cands.forEach(n => S.picked[n] = (S.picked[n] || 0) + 1); S.log.push({ e, c: chosen }); }
+  chosen.forEach(c => { c.cands.forEach(n => S.picked[n] = (S.picked[n] || 0) + 1); S.log.push({ e, c }); });
   S.hist.push({ qi: S.qi, cards, chosen });
   S.qi++; question();
 }
 
-// 上一題：把上一題算進去的分數完整扣回來，再回到那一題
+// 上一題：把上一題算進去的分數完整扣回來（選 2 張就扣 2 張），再回到那一題
 function goBack() {
   const h = S.hist.pop();
   if (!h) { coinsPage(); return; }          // 第 1 題再往回 → 回硬幣頁（回來會重新出題）
   h.cards.forEach(c => c.cands.forEach(n => S.shown[n]--));
-  if (h.chosen) { h.chosen.cands.forEach(n => S.picked[n]--); S.log.pop(); }
+  h.chosen.forEach(c => { c.cands.forEach(n => S.picked[n]--); S.log.pop(); });
   S.qi = h.qi; S.redo = h; question();
 }
 
@@ -270,7 +307,7 @@ function result() {
   app.innerHTML = `
   <div class="bar"><i style="width:100%"></i></div>
   <h2>🎁 開盲盒！跟你最合的是…</h2>
-  <p class="sub">只比對公報上寫的內容，不代表候選人過去的實際表現，也不能取代你自己的判斷。</p>
+  <p class="sub">${esc(D.title)}｜只比對公報上寫的內容，不代表候選人過去的實際表現，也不能取代你自己的判斷。</p>
   ${top.map((c, r) => {
     const mineCards = S.log.filter(x => x.c.cands.includes(c.no));
     const jarTop = D.jars.map((j, i) => [j.name, c.prof[i]]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 3);
@@ -309,9 +346,9 @@ function result() {
   計分規則和完整對照表都公開在 <a href="https://github.com/" id="repo" target="_blank" rel="noopener">GitHub</a>，歡迎檢查。<br>
   資料來源：${esc(D.source)}</p>`;
 
-  $('#again').onclick = () => { reset(); home(); };
+  $('#again').onclick = home;
   $('#share').onclick = async () => {
-    const data = { title: '誰有時間看公報', text: '這些政見不告訴你是誰的，玩完才揭曉 🗳️', url: location.origin + location.pathname };
+    const data = { title: '誰有時間看公報', text: '這些政見不告訴你是誰的，玩完才揭曉 🗳️', url: location.origin + location.pathname + '?d=' + D.id };
     try { if (navigator.share) await navigator.share(data); else { await navigator.clipboard.writeText(data.url); toast('網址已複製'); } } catch (_) {}
   };
   // 自動連到 repo：https://帳號.github.io/bulletimeless/ → https://github.com/帳號/bulletimeless
@@ -322,5 +359,7 @@ function result() {
 </script>
 
 <!-- Cloudflare Web Analytics：只統計瀏覽次數、來源、裝置，不含任何作答內容 -->
-<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "fd943d3fa5364bf6ab456ea41fe956f1"}'></script><!-- End Cloudflare Web Analytics --></body>
+<!-- 把下面這行換成 Cloudflare 後台給你的那一行（token 換成你的） -->
+<!-- <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "你的TOKEN"}'></script> -->
+</body>
 </html>
