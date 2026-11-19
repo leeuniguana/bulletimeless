@@ -80,7 +80,7 @@ fetch(`data/district-${DISTRICT}.json`)
   .then(d => { D = d; reset(); new Date() >= new Date(D.vote.closeAt) && !location.search.includes('preview') ? closed() : home(); })
   .catch(e => { app.innerHTML = `<h2>😵 資料載入失敗</h2><p>${esc(e.message)}</p><p class="sub">如果你是直接雙擊打開 index.html，瀏覽器會擋住資料檔。請放上 GitHub Pages，或在資料夾裡執行 <code>python -m http.server</code> 再打開 http://localhost:8000</p>`; });
 
-function reset() { S = { area: null, tags: [], coins: {}, queue: [], qi: 0, shown: {}, picked: {}, log: [] }; }
+function reset() { S = { area: null, tags: [], coins: {}, queue: [], qi: 0, shown: {}, picked: {}, log: [], hist: [], order: {} }; }
 
 // ---------- 投票日之後 ----------
 function closed() {
@@ -129,16 +129,16 @@ function tagsPage() {
   $('#go').onclick = () => { S.coins = presetCoins(); coinsPage(); };
 }
 
-// 依標籤先分好硬幣：每罐先放 1 份底，每個標籤替它的罐子加 4 份（兩個罐子就各 2 份），換算成 100 元、以 5 元為單位
+// 依標籤先分好硬幣：沒有保底，每個標籤替它的罐子加 4 份（兩個罐子就各 2 份），換算成 100 元、以 5 元為單位；沒選到的罐子從 0 開始
 function presetCoins() {
-  const w = {}; D.jars.forEach(j => w[j.k] = 1);
+  const w = {}; D.jars.forEach(j => w[j.k] = 0);
   S.tags.forEach(i => { const js = D.tags[i].jars; js.forEach(k => w[k] += 4 / js.length); });
   const sum = Object.values(w).reduce((a, b) => a + b, 0);
-  const c = {}; D.jars.forEach(j => c[j.k] = Math.max(STEP, Math.round(w[j.k] / sum * 100 / STEP) * STEP));
+  const c = {}; D.jars.forEach(j => c[j.k] = Math.max(0, Math.round(w[j.k] / sum * 100 / STEP) * STEP));
   let diff = 100 - Object.values(c).reduce((a, b) => a + b, 0);
   while (diff !== 0) {   // 四捨五入後補差額，總數一定是 100
     const ks = Object.keys(c).sort((a, b) => c[b] - c[a]);
-    const k = diff > 0 ? ks[0] : ks.find(k => c[k] > STEP);
+    const k = diff > 0 ? ks[0] : ks.find(k => c[k] > 0);
     c[k] += diff > 0 ? STEP : -STEP; diff += diff > 0 ? -STEP : STEP;
   }
   return c;
@@ -173,16 +173,17 @@ function coinsPage() {
   draw();
 }
 
-// ---------- 出題：有硬幣的罐子至少 1 題，剩下依硬幣比例抽 ----------
+// ---------- 出題：每個議題罐固定至少 1 題（不看硬幣），剩下的題目依硬幣比例抽 ----------
 function buildQueue() {
   const byJar = {}; D.events.forEach(e => (byJar[e.jar] = byJar[e.jar] || []).push(e));
-  const ks = D.jars.map(j => j.k).filter(k => S.coins[k] > 0 && byJar[k]);
+  const ks = D.jars.map(j => j.k).filter(k => byJar[k]);
   const n = {}; ks.forEach(k => n[k] = 1);
   let rest = ROUNDS - ks.length;
   while (rest > 0) {
     const pool = ks.filter(k => n[k] < byJar[k].length); if (!pool.length) break;
-    let r = Math.random() * pool.reduce((a, k) => a + S.coins[k], 0);
-    const k = pool.find(k => (r -= S.coins[k]) < 0) || pool[pool.length - 1];
+    const wt = k => (S.coins[k] || 0) + 0.001;   // 沒放硬幣的罐子幾乎不會多抽，但硬幣全滿時不會卡住
+    let r = Math.random() * pool.reduce((a, k) => a + wt(k), 0);
+    const k = pool.find(k => (r -= wt(k)) < 0) || pool[pool.length - 1];
     n[k]++; rest--;
   }
   let q = []; ks.forEach(k => q = q.concat(shuffle(byJar[k]).slice(0, n[k])));
@@ -190,7 +191,7 @@ function buildQueue() {
   (byJar.V || []).forEach(v => q.splice(Math.floor(Math.random() * (q.length + 1)), 0, v));   // 立場題每人必出
   const egg = D.eggs[Math.floor(Math.random() * D.eggs.length)];
   q.push({ id: 'EGG', egg: true, text: egg.text, cards: [{ text: egg.card, cands: egg.cands, rows: egg.rows }] });
-  S.queue = q; S.qi = 0; S.shown = {}; S.picked = {}; S.log = [];
+  S.queue = q; S.qi = 0; S.shown = {}; S.picked = {}; S.log = []; S.hist = []; S.order = {};
 }
 
 // ---------- 第 1 關：生活事件 ----------
@@ -198,20 +199,26 @@ function question() {
   const e = S.queue[S.qi];
   if (!e) return result();
   const total = S.queue.length;
-  const cards = e.egg ? e.cards : shuffle(e.cards);
+  const cards = S.order[S.qi] || (S.order[S.qi] = e.egg ? e.cards : shuffle(e.cards));
   app.innerHTML = `
   <div class="bar"><i style="width:${30 + 65 * S.qi / total}%"></i></div>
   <p class="sub">第 ${S.qi + 1} / ${total} 題${e.jar === 'V' ? '｜🧭 立場題' : ''}${e.egg ? '｜🥚 彩蛋題（不計分）' : ''}</p>
   <div class="event">${esc(e.text)}</div>
   <p class="sub">${e.egg ? '這題只有一張卡…' : '你最想要哪一個解方？'}</p>
   ${cards.map((c, i) => `<button class="opt" data-i="${i}">${esc(c.text)}</button>`).join('')}
-  ${e.egg ? '' : '<button class="btn ghost" id="skip">都不想要，跳過</button>'}`;
+  ${e.egg ? '' : '<button class="btn ghost" id="skip">都不想要，跳過</button>'}
+  <button class="btn ghost" id="prev">← ${S.qi ? '上一題' : '回去改硬幣'}</button>`;
+  app.querySelectorAll('.opt').forEach((b, i) => { if (S.redo && S.redo.chosen === cards[i]) b.classList.add('on'); });
+  if (S.redo && S.redo.chosen === null && $('#skip')) $('#skip').textContent = '都不想要，跳過（你上次選這個）';
+  S.redo = null;
+  $('#prev').onclick = goBack;
   app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
     const c = cards[+b.dataset.i];
     if (e.egg) {
       app.querySelector('.opt').outerHTML = `<div class="event" style="font-size:16px">😆 這題有 <b>${c.cands.length} 位候選人</b>都提過「${esc(c.text)}」，選誰都一樣！</div>`;
       app.insertAdjacentHTML('beforeend', '<button class="btn" id="go">看結果 🎁</button>');
       $('#go').onclick = () => { S.qi++; result(); };
+      const pv = $('#prev'); if (pv) pv.remove();
       return;
     }
     answer(e, cards, c);
@@ -222,7 +229,17 @@ function question() {
 function answer(e, cards, chosen) {
   cards.forEach(c => c.cands.forEach(n => S.shown[n] = (S.shown[n] || 0) + 1));
   if (chosen) { chosen.cands.forEach(n => S.picked[n] = (S.picked[n] || 0) + 1); S.log.push({ e, c: chosen }); }
+  S.hist.push({ qi: S.qi, cards, chosen });
   S.qi++; question();
+}
+
+// 上一題：把上一題算進去的分數完整扣回來，再回到那一題
+function goBack() {
+  const h = S.hist.pop();
+  if (!h) { coinsPage(); return; }          // 第 1 題再往回 → 回硬幣頁（回來會重新出題）
+  h.cards.forEach(c => c.cands.forEach(n => S.shown[n]--));
+  if (h.chosen) { h.chosen.cands.forEach(n => S.picked[n]--); S.log.pop(); }
+  S.qi = h.qi; S.redo = h; question();
 }
 
 // ---------- 計分（全部在這台裝置上算） ----------
@@ -305,6 +322,5 @@ function result() {
 </script>
 
 <!-- Cloudflare Web Analytics：只統計瀏覽次數、來源、裝置，不含任何作答內容 -->
-<!-- 把下面這行換成 Cloudflare 後台給你的那一行（token 換成你的） -->
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "fd943d3fa5364bf6ab456ea41fe956f1"}'></script><!-- End Cloudflare Web Analytics --></body>
 </html>
