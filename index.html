@@ -67,6 +67,11 @@ li{margin:4px 0;font-size:14px}
 .res.mini{padding:12px}
 .res.mini .big{font-size:24px}
 .unr{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:14px 0}
+.yn{display:flex;gap:10px}
+.yn .btn{margin-top:8px}
+.law{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+.law .f{font-size:18px;font-weight:800;text-align:center;margin:10px 0 2px}
+.jl{font-size:15px;margin:4px 0}
 a{color:var(--main)}
 </style>
 </head>
@@ -136,8 +141,32 @@ function home() {
   $('#go').onclick = () => {
     $('#go').disabled = true; $('#go').textContent = '載入中…';
     const area = S.area;
-    getJSON(`data/district-${pickD}.json`).then(d => { D = d; S.area = area; tagsPage(); }).catch(loadFail);
+    getJSON(`data/district-${pickD}.json`).then(d => { D = d; S.area = area; D.intro ? introPage() : tagsPage(); }).catch(loadFail);
   };
+}
+
+// ---------- 同額競選說明（健檢模式的選區，點進來先看這頁；結算頁底部也有一份） ----------
+const LAW_URL = 'https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=D0020010&flno=70';
+function lawHTML() {
+  return `<p>候選人數沒有超過應選名額時（同額競選），依《公職人員選舉罷免法》第 70 條，直轄市議員的得票數要達到門檻才算當選：</p>
+  <div class="f">（選舉區選舉人總數 ÷ 應選名額）× 10%</div>
+  <p class="sub" style="text-align:center"><small>例如：選舉區有 1,000 位選舉人、應選 1 席，門檻就是 1,000 ÷ 1 × 10% ＝ 100 票。</small></p>
+  <p>沒有達到門檻的話，這一席視同缺額。同一選區缺額達到一半時，要在 3 個月內補選。</p>
+  <p>也就是說，就算只有一位候選人，票數還是有意義。</p>
+  <p class="sub">資料來源：<a href="${LAW_URL}" target="_blank" rel="noopener">全國法規資料庫《公職人員選舉罷免法》第 70 條</a></p>`;
+}
+function introPage() {
+  app.innerHTML = `
+  <div class="bar"><i style="width:5%"></i></div>
+  <p class="sub">${esc(D.title)}</p>
+  <h2>ℹ️ 只有一位候選人，還需要投票嗎？</h2>
+  <div class="law">${lawHTML()}</div>
+  <p>這一區只有一位候選人，沒辦法配對，所以改成<b>🩺 政見健檢</b>：先分配你的 100 元，再一張一張看公報上寫的政見，選「想要」或「不需要」，最後看看你在意的議題，公報涵蓋了幾成。</p>
+  <button class="btn" id="go">開始健檢</button>
+  <button class="btn ghost" id="home">回首頁</button>`;
+  $('#go').onclick = tagsPage;
+  $('#home').onclick = home;
+  window.scrollTo(0, 0);
 }
 
 // ---------- 第 0 關：斜槓標籤 ----------
@@ -246,6 +275,7 @@ function question() {
   ${e.egg ? '' : '<button class="btn ghost" id="skip">都不想要，跳過</button>'}
   <button class="btn ghost" id="prev">← ${S.qi ? '上一題' : '回去改硬幣'}</button>`;
   const redo = S.redo; S.redo = null;
+  if (D.mode === 'checkup') return checkupQuestion(e, cards, total, redo);
   const opts = [...app.querySelectorAll('.opt')];
   if (redo && !redo.chosen.length && $('#skip')) $('#skip').textContent = '都不想要，跳過（你上次選這個）';
   $('#prev').onclick = goBack;
@@ -280,6 +310,23 @@ function question() {
   });
   $('#ok').onclick = () => answer(e, cards, sel.map(i => cards[i]));
   upd();
+}
+
+// 健檢模式：每題只有這位候選人的 1 張卡，選「想要」= 選中，「不需要」= 跳過（計分公式跟一般模式一樣）
+function checkupQuestion(e, cards, total, redo) {
+  app.innerHTML = `
+  <div class="bar"><i style="width:${30 + 65 * S.qi / total}%"></i></div>
+  <p class="sub">第 ${S.qi + 1} / ${total} 題｜🩺 政見健檢</p>
+  <div class="event">${esc(e.text)}</div>
+  <p class="sub">公報上寫的解方是這個，你需要嗎？</p>
+  <div class="opt" style="cursor:default">${esc(cards[0].text)}</div>
+  <div class="yn"><button class="btn${redo && redo.chosen.length ? '' : redo ? ' ghost' : ''}" id="yes">👍 想要</button>
+  <button class="btn${redo && !redo.chosen.length ? '' : ' ghost'}" id="no">🙅 不需要</button></div>
+  ${redo ? `<p class="sub">你上次選「${redo.chosen.length ? '想要' : '不需要'}」</p>` : ''}
+  <button class="btn ghost" id="prev">← ${S.qi ? '上一題' : '回去改硬幣'}</button>`;
+  $('#yes').onclick = () => answer(e, cards, [cards[0]]);
+  $('#no').onclick = () => answer(e, cards, []);
+  $('#prev').onclick = goBack;
 }
 
 function answer(e, cards, chosen) {
@@ -355,7 +402,65 @@ function candHTML(c, r, mini) {
     ${extraHTML(c.no)}</div>`;
 }
 
+// ---------- 健檢模式結算：不排名，顯示涵蓋率 ----------
+function checkupResult() {
+  const c = score()[0], pct = x => Math.round(x * 100) + '%', P = D.policies;
+  const mine = D.jars.map((j, i) => ({ name: j.name, coin: S.coins[j.k] || 0, has: c.prof[i] > 0 }));
+  const ok = mine.filter(j => j.coin > 0 && j.has).sort((a, b) => b.coin - a.coin);
+  const miss = mine.filter(j => j.coin > 0 && !j.has).sort((a, b) => b.coin - a.coin);
+  const extra = mine.filter(j => j.coin === 0 && j.has);
+  const want = S.log.filter(x => x.c.cands.includes(c.no));
+  const notWant = S.hist.filter(h => !h.chosen.length).map(h => h.cards[0]);
+  const tagNames = S.tags.map(i => D.tags[i].name);
+  const myTop = D.jars.map(j => [j.name, S.coins[j.k]]).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const weekend = tagNames.some(t => t.includes('週末才回家'));
+  const li = x => `<li>「${esc(x.text)}」<br><span class="sub">${x.rows.filter(i => P[i]).map(i => esc(P[i].t)).join('；')}</span></li>`;
+
+  app.innerHTML = `
+  <div class="bar"><i style="width:100%"></i></div>
+  <h2>🩺 政見健檢報告</h2>
+  <p class="sub">${esc(D.title)}｜只比對公報上寫的內容，不代表候選人過去的實際表現，也不能取代你自己的判斷。</p>
+  <div class="res r1">
+    <div class="rank">你在意的議題，${D.id}-${c.no} ${esc(c.name)} 的公報涵蓋了幾成</div>
+    <div class="big">${pct(c.total)}</div>
+    <div class="sub">${esc(c.party === '無' ? '無黨籍' : c.party)}</div>
+    ${ok.length ? `<p class="jl"><b>✅ 有寫到</b>：${ok.map(j => `${esc(j.name)}（你放 ${j.coin} 元）`).join('、')}</p>` : ''}
+    ${miss.length ? `<p class="jl"><b>⚠️ 你在意但公報沒寫到</b>：${miss.map(j => `${esc(j.name)}（你放 ${j.coin} 元）`).join('、')}</p>` : '<p class="jl">👏 你放了硬幣的議題，公報上都有寫到。</p>'}
+    ${extra.length ? `<p class="sub">公報上還寫了（你沒放硬幣）：${extra.map(j => esc(j.name)).join('、')}</p>` : ''}
+    <details><summary>這個數字怎麼來的？</summary>
+      <p><b>預算分 ${pct(c.budget)}</b>（佔一半）：你的硬幣分配跟公報的政見重心像不像。</p>
+      <p><b>卡片分 ${pct(c.card)}</b>（佔一半）：一共 ${S.shown[c.no] || 0} 張卡，你選了 ${S.picked[c.no] || 0} 張「想要」。</p>
+      <p class="sub">算法跟其他選區的契合度一樣，只是這一區只有一位候選人，所以不排名。</p>
+      ${want.length ? `<p>👍 你想要的：</p><ul>${want.map(x => li(x.c)).join('')}</ul>` : ''}
+      ${notWant.length ? `<p>🙅 你覺得不需要的：</p><ul>${notWant.map(li).join('')}</ul>` : ''}
+    </details>
+  </div>
+
+  <div class="cardme">
+    <div class="t">我的斜槓人生卡</div>
+    <div class="tags">${tagNames.map(esc).join(' ／ ')}</div>
+    <div>最在意：${myTop.map(x => `${esc(x[0])} ${x[1]} 元`).join('、')}</div>
+    <div class="t" style="margin-top:6px">${esc(S.area || '')}｜誰有時間看公報</div>
+  </div>
+
+  <div class="vote">
+    <div style="font-size:18px;font-weight:800">🗳️ 記得去投票</div>
+    <p><b>${D.vote.date.slice(5).replace('-', '/')}（六）${D.vote.time}</b></p>
+    <p>記得帶 ${esc(D.vote.bring)}</p>
+    ${weekend ? '<p>🧳 週末才回家的人，這週記得回家喔！</p>' : ''}
+  </div>
+  <details class="law"><summary>ℹ️ 只有一位候選人，還需要投票嗎？</summary>${lawHTML()}</details>
+
+  <button class="btn" id="share">分享給朋友</button>
+  <button class="btn ghost" id="again">再玩一次</button>
+  <p class="note">📵 你的作答和健檢結果只在這台裝置上計算，沒有送到任何地方。<br>
+  計分規則和完整對照表都公開在 <a href="https://github.com/" id="repo" target="_blank" rel="noopener">GitHub</a>，歡迎檢查。<br>
+  資料來源：${esc(D.source)}</p>`;
+  bindResult();
+}
+
 function result() {
+  if (D.mode === 'checkup') return checkupResult();
   const unr = D.unranked || [];
   const ranked = score().filter(c => !unr.includes(c.no));            // 不參加排名的人不進排名
   const nShow = ranked.length <= 4 ? ranked.length : (D.topN || 3);    // 4 人以下全列，5 人以上取前 topN
@@ -397,6 +502,9 @@ function result() {
   資料來源：${esc(D.source)}</p>`;
 
   const allBtn = $('#all'); if (allBtn) allBtn.onclick = () => { $('#allbox').classList.remove('hide'); allBtn.remove(); };
+  bindResult();
+}
+function bindResult() {
   $('#again').onclick = home;
   $('#share').onclick = async () => {
     const data = { title: '誰有時間看公報', text: '這些政見不告訴你是誰的，玩完才揭曉 🗳️', url: location.origin + location.pathname + '?d=' + D.id };
