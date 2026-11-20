@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>誰有時間看公報｜2026 議員選舉政見配對</title>
-<meta name="description" content="公報十幾個人、幾百條政見，誰有時間看？回答幾題生活小麻煩，看看哪幾位候選人的政見跟你最合。目前開放：新北第 8 選區、臺北第 5 選區。">
+<meta name="description" content="公報十幾個人、幾百條政見，誰有時間看？回答幾題生活小麻煩，看看哪幾位候選人的政見跟你最合。">
 <meta property="og:title" content="誰有時間看公報 🗳️">
-<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。新北第 8 選區・臺北第 5 選區・臺北第 6 選區">
+<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。新北第 8 ・ 9 選區・臺北第 5 ・ 6 選區">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://leeuniguana.github.io/bulletimeless/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -24,6 +24,7 @@ p{margin:6px 0}
 .btn.ghost{background:transparent;color:var(--main);border:2px solid var(--main)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .chip{border:2px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-size:15px;cursor:pointer;user-select:none}
+.chip.soon{border-style:dashed;color:var(--sub);background:transparent;cursor:default}
 .chip.on{border-color:var(--main);background:var(--main2);font-weight:700}
 .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:4px 0 14px}
 .bar i{display:block;height:100%;background:var(--main);transition:width .3s}
@@ -120,15 +121,17 @@ function home() {
   <h2 style="margin-top:22px">你住哪一區？</h2>
   <p class="sub">人在外地、戶籍在這裡的話，選戶籍所在的區</p>
   ${cities.map(c => `<p style="margin-top:14px"><b>${esc(c)}</b></p><div class="chips">${IDX.districts.filter(d => d.city === c).map(d =>
-      d.areas.map(a => `<span class="chip" data-d="${d.id}" data-a="${esc(a)}">${esc(a)}</span>`).join('')).join('')}</div>`).join('')}
+      d.areas.map(a => `<span class="chip" data-d="${d.id}" data-a="${esc(a)}">${esc(a)}</span>`).join('')).join('')}${(IDX.upcoming || []).filter(u => u.city === c).map(u => `<span class="chip soon">🚧 ${esc(u.name)}（製作中）</span>`).join('')}</div>`).join('')}
+  ${IDX.upcomingNote && (IDX.upcoming || []).some(u => cities.includes(u.city)) ? `<p class="sub">ℹ️ ${esc(IDX.upcomingNote)}</p>` : ''}
   <p class="sub" id="dname"></p>
   <button class="btn" id="go" disabled>開始</button>`;
   let pickD = null;
-  app.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+  app.querySelectorAll('.chip:not(.soon)').forEach(c => c.onclick = () => {
     app.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
     c.classList.add('on'); S.area = c.dataset.a; pickD = c.dataset.d; $('#go').disabled = false;
     const d = IDX.districts.find(x => x.id === pickD);
     $('#dname').textContent = `→ ${d.city}議員${d.name}（${d.areas.map(a => a.replace('區', '')).join('・')}）`;
+    const nt = (d.notes || {})[S.area]; if (nt) $('#dname').innerHTML = esc($('#dname').textContent) + `<br><span class="sub">ℹ️ ${esc(nt)}</span>`;
   });
   $('#go').onclick = () => {
     $('#go').disabled = true; $('#go').textContent = '載入中…';
@@ -218,8 +221,11 @@ function buildQueue() {
   let q = []; ks.forEach(k => q = q.concat(shuffle(byJar[k]).slice(0, n[k])));
   q = shuffle(q);
   (byJar.V || []).forEach(v => q.splice(Math.floor(Math.random() * (q.length + 1)), 0, v));   // 立場題每人必出
-  const egg = D.eggs[Math.floor(Math.random() * D.eggs.length)];
-  q.push({ id: 'EGG', egg: true, text: egg.text, cards: [{ text: egg.card, cands: egg.cands, rows: egg.rows }] });
+  const eggs = D.eggs || [];   // 沒有共通政見的選區（例如 f09）就不出彩蛋題
+  if (eggs.length) {
+    const egg = eggs[Math.floor(Math.random() * eggs.length)];
+    q.push({ id: 'EGG', egg: true, text: egg.text, cards: [{ text: egg.card, cands: egg.cands, rows: egg.rows }] });
+  }
   S.queue = q; S.qi = 0; S.shown = {}; S.picked = {}; S.log = []; S.hist = []; S.order = {};
 }
 
@@ -402,7 +408,6 @@ function result() {
   window.scrollTo(0, 0);
 }
 </script>
-
 <!-- Cloudflare Web Analytics：只統計瀏覽次數、來源、裝置，不含任何作答內容 -->
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "fd943d3fa5364bf6ab456ea41fe956f1"}'></script><!-- End Cloudflare Web Analytics --></body>
 </html>
