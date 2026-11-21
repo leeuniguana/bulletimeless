@@ -6,7 +6,7 @@
 <title>誰有時間看公報｜2026 議員選舉政見配對</title>
 <meta name="description" content="公報十幾個人、幾百條政見，誰有時間看？回答幾題生活小麻煩，看看哪幾位候選人的政見跟你最合。">
 <meta property="og:title" content="誰有時間看公報 🗳️">
-<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。新北第 1 ・ 6 ・ 7 ・ 8 ・ 9 ・ 10 選區・臺北第 5 ・ 6 選區">
+<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。新北第 1 ・ 2 ・ 3 ・ 6 ・ 7 ・ 8 ・ 9 ・ 10 選區・臺北第 5 ・ 6 選區">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://leeuniguana.github.io/bulletimeless/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -114,8 +114,8 @@ function closed() {
 }
 
 // ---------- 開場 ----------
-function home() {
-  reset();
+function home(prev) {
+  reset(); // prev：從標籤頁「← 換選區」回來時，先幫玩家點好原本選的行政區
   const cities = [...new Set(IDX.districts.map(d => d.city))];
   app.innerHTML = `
   <p class="sub">${IDX.title}</p>
@@ -143,6 +143,7 @@ function home() {
     const area = S.area;
     getJSON(`data/district-${pickD}.json`).then(d => { D = d; S.area = area; D.intro ? introPage() : tagsPage(); }).catch(loadFail);
   };
+  if (prev) { const c = [...app.querySelectorAll('.chip:not(.soon)')].find(x => x.dataset.a === prev); if (c) { c.click(); c.scrollIntoView({ block: 'center' }); } }
 }
 
 // ---------- 同額競選說明（健檢模式的選區，點進來先看這頁；結算頁底部也有一份） ----------
@@ -165,7 +166,7 @@ function introPage() {
   <button class="btn" id="go">開始健檢</button>
   <button class="btn ghost" id="home">回首頁</button>`;
   $('#go').onclick = tagsPage;
-  $('#home').onclick = home;
+  $('#home').onclick = () => home(S.area);
   window.scrollTo(0, 0);
 }
 
@@ -177,7 +178,9 @@ function tagsPage() {
   <p class="sub">選出符合你的標籤，最多 ${MAX_TAGS} 個。可以同時是新手爸媽又是捷運受害者 😮‍💨</p>
   <div class="chips">${D.tags.map((t, i) => `<span class="chip${S.tags.includes(i) ? ' on' : ''}" data-i="${i}">${esc(t.name)}</span>`).join('')}</div>
   <p class="sub" id="cnt"></p>
-  <button class="btn" id="go">下一步</button>`;
+  <button class="btn" id="go">下一步</button>
+  <button class="btn ghost" id="chg">← 換選區</button>`;
+  $('#chg').onclick = () => home(S.area);
   const upd = () => { $('#cnt').textContent = `已選 ${S.tags.length} / ${MAX_TAGS}`; $('#go').disabled = !S.tags.length; };
   app.querySelectorAll('.chip').forEach(c => c.onclick = () => {
     const i = +c.dataset.i, k = S.tags.indexOf(i);
