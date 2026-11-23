@@ -6,7 +6,7 @@
 <title>誰有時間看公報｜2026 議員選舉政見配對</title>
 <meta name="description" content="公報十幾個人、幾百條政見，誰有時間看？回答幾題生活小麻煩，看看哪幾位候選人的政見跟你最合。">
 <meta property="og:title" content="誰有時間看公報 🗳️">
-<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。新北第 1 ・ 2 ・ 3 ・ 6 ・ 7 ・ 8 ・ 9 ・ 10 選區・臺北第 5 ・ 6 選區">
+<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。新北第 1～13 選區・臺北第 5・6 選區">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://leeuniguana.github.io/bulletimeless/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -19,6 +19,7 @@ h1{font-size:30px;margin:12px 0 4px;line-height:1.3}
 h2{font-size:22px;margin:8px 0 6px;line-height:1.4}
 p{margin:6px 0}
 .sub{color:var(--sub);font-size:14px}
+.note{color:var(--sub);font-size:12px;margin:-8px 0 12px;line-height:1.5}
 .btn{display:block;width:100%;border:0;border-radius:14px;padding:14px;font-size:17px;font-weight:700;background:var(--main);color:#fff;margin-top:18px;cursor:pointer}
 .btn:disabled{background:#d8cbbb;cursor:default}
 .btn.ghost{background:transparent;color:var(--main);border:2px solid var(--main)}
@@ -73,6 +74,19 @@ li{margin:4px 0;font-size:14px}
 .law .f{font-size:18px;font-weight:800;text-align:center;margin:10px 0 2px}
 .jl{font-size:15px;margin:4px 0}
 a{color:var(--main)}
+.map{display:block;width:100%;max-width:360px;margin:8px auto 0}
+.map path{stroke:#fff;stroke-width:1.5;stroke-linejoin:round}
+.map .cy{fill:#f6c9a8;cursor:pointer;transition:fill .2s}
+.map .cy:hover{fill:#f2a87e}
+.map .cy.on{fill:var(--main)}
+.map .cy:focus{outline:none}
+.map .cy:focus-visible{stroke:var(--ink);stroke-width:3}
+.map .none{fill:#ece3d4}
+.map text{font-size:17px;font-weight:800;fill:var(--ink);text-anchor:middle;dominant-baseline:middle;pointer-events:none}
+.map text.none{fill:#b3a797;font-size:13px;font-weight:400}
+.map text.on{fill:#fff}
+.chips.city{justify-content:center;margin-top:6px}
+.ab{margin-top:14px;padding-top:10px;border-top:1px dashed var(--line)}
 </style>
 </head>
 <body>
@@ -91,6 +105,8 @@ const $ = s => document.querySelector(s);
 const app = $('#app');
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// 題目下方的小字說明（選填）：note = 文字，link = {text, url}，只接受 https 連結
+const noteHTML = e => !e.note ? '' : `<p class="note">ℹ️ ${esc(e.note)}${e.link && /^https:\/\//.test(e.link.url) ? ` <a href="${esc(e.link.url)}" target="_blank" rel="noopener noreferrer">${esc(e.link.text)}</a>` : ''}</p>`;
 const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 1800); };
 
 let D, S;   // D = 選區資料；S = 這一局的狀態（只存在玩家自己的瀏覽器裡，不會送出去）
@@ -98,8 +114,9 @@ let D, S;   // D = 選區資料；S = 這一局的狀態（只存在玩家自己
 const loadFail = e => { app.innerHTML = `<h2>😵 資料載入失敗</h2><p>${esc(e.message)}</p><p class="sub">如果你是直接雙擊打開 index.html，瀏覽器會擋住資料檔。請放上 GitHub Pages，或在資料夾裡執行 <code>python -m http.server</code> 再打開 http://localhost:8000</p>`; };
 const getJSON = f => fetch(f).then(r => { if (!r.ok) throw new Error(`找不到 ${f}（HTTP ${r.status}）`); return r.json(); });
 
-getJSON('data/districts.json')
-  .then(x => { IDX = x; if (ONLY) IDX.districts = IDX.districts.filter(d => d.id === ONLY);
+let MAP = null;              // 首頁地圖（城市外框），data/map.json
+Promise.all([getJSON('data/districts.json'), getJSON('data/map.json').catch(e => { console.error(e); return { error: e.message }; })])
+  .then(([x, m]) => { IDX = x; MAP = m; if (ONLY) IDX.districts = IDX.districts.filter(d => d.id === ONLY);
     if (!IDX.districts.length) throw new Error(`沒有這個選區：${ONLY}`);
     new Date() >= new Date(IDX.closeAt) && !location.search.includes('preview') ? closed() : home(); })
   .catch(loadFail);
@@ -114,9 +131,16 @@ function closed() {
 }
 
 // ---------- 開場 ----------
+const isAb = a => a.includes('原住民');   // 原住民選舉區不在地圖上（範圍是全市），放在行政區按鈕下方
 function home(prev) {
-  reset(); // prev：從標籤頁「← 換選區」回來時，先幫玩家點好原本選的行政區
+  reset(); // prev：從標籤頁「← 換選區」回來時，先展開原本的城市、點好原本選的行政區
   const cities = [...new Set(IDX.districts.map(d => d.city))];
+  const mapOK = MAP && MAP.cities;
+  const mapHTML = !mapOK ? `<p class="sub">⚠️ 地圖載入失敗（${esc((MAP && MAP.error) || '沒有地圖資料')}），請用下面的按鈕選城市。</p>` :
+    `<svg class="map" viewBox="-6 -6 ${MAP.w + 12} ${MAP.h + 12}" role="group" aria-label="選擇城市">${MAP.cities.map(c => cities.includes(c.name)
+      ? `<path class="cy" data-c="${esc(c.name)}" d="${c.d}" tabindex="0" role="button" aria-label="${esc(c.name)}"><title>${esc(c.name)}</title></path>`
+      : `<path class="none" d="${c.d}"><title>${esc(c.name)}（還沒開放）</title></path>`).join('')}${MAP.cities.map(c =>
+      `<text class="${cities.includes(c.name) ? 'lb' : 'none'}" data-c="${esc(c.name)}" x="${c.label[0]}" y="${c.label[1]}">${esc(c.name)}</text>`).join('')}</svg>`;
   app.innerHTML = `
   <p class="sub">${IDX.title}</p>
   <h1>誰有時間看公報 🗳️</h1>
@@ -124,26 +148,48 @@ function home(prev) {
   <p>回答幾題生活小麻煩，翻開<b>不具名</b>的解方卡，<br>玩完才揭曉誰的政見跟你最合。</p>
   <p class="sub">⏱️ 大約 5 分鐘｜📵 你的答案不會離開這台手機</p>
   <h2 style="margin-top:22px">你住哪一區？</h2>
-  <p class="sub">人在外地、戶籍在這裡的話，選戶籍所在的區</p>
-  ${cities.map(c => `<p style="margin-top:14px"><b>${esc(c)}</b></p><div class="chips">${IDX.districts.filter(d => d.city === c).map(d =>
-      d.areas.map(a => `<span class="chip" data-d="${d.id}" data-a="${esc(a)}">${esc(a)}</span>`).join('')).join('')}${(IDX.upcoming || []).filter(u => u.city === c).map(u => `<span class="chip soon">🚧 ${esc(u.name)}（製作中）</span>`).join('')}</div>`).join('')}
-  ${IDX.upcomingNote && (IDX.upcoming || []).some(u => cities.includes(u.city)) ? `<p class="sub">ℹ️ ${esc(IDX.upcomingNote)}</p>` : ''}
+  <p class="sub">先點城市，再選行政區。人在外地、戶籍在這裡的話，選戶籍所在的區</p>
+  ${mapHTML}
+  <div class="chips city">${cities.map(c => `<span class="chip cbtn" data-c="${esc(c)}">${esc(c)}</span>`).join('')}</div>
+  <div id="areas"></div>
   <p class="sub" id="dname"></p>
   <button class="btn" id="go" disabled>開始</button>`;
   let pickD = null;
-  app.querySelectorAll('.chip:not(.soon)').forEach(c => c.onclick = () => {
-    app.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+  const chip = (d, a) => `<span class="chip" data-d="${d.id}" data-a="${esc(a)}">${esc(a)}</span>`;
+  const openCity = c => {
+    app.querySelectorAll('[data-c]').forEach(x => x.classList.toggle('on', x.dataset.c === c));
+    S.area = null; pickD = null; $('#go').disabled = true; $('#dname').textContent = '';
+    const ds = IDX.districts.filter(d => d.city === c);
+    const nor = ds.flatMap(d => d.areas.filter(a => !isAb(a)).map(a => chip(d, a)));
+    const ab = ds.flatMap(d => d.areas.filter(isAb).map(a => chip(d, a)));
+    const soon = (IDX.upcoming || []).filter(u => u.city === c).map(u => `<span class="chip soon">🚧 ${esc(u.name)}（製作中）</span>`);
+    $('#areas').innerHTML = `<p style="margin-top:14px"><b>${esc(c)}</b></p><div class="chips">${nor.join('')}</div>` +
+      (ab.length || soon.length ? `<div class="ab"><p class="sub">具原住民身分者，議員選票依身分投平地或山地原住民選舉區</p><div class="chips">${ab.join('')}${soon.join('')}</div>` +
+        (soon.length && IDX.upcomingNote ? `<p class="sub">ℹ️ ${esc(IDX.upcomingNote)}</p>` : '') + '</div>' : '');
+    $('#areas').querySelectorAll('.chip:not(.soon)').forEach(x => x.onclick = () => pickArea(x));
+  };
+  const pickArea = c => {
+    $('#areas').querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
     c.classList.add('on'); S.area = c.dataset.a; pickD = c.dataset.d; $('#go').disabled = false;
     const d = IDX.districts.find(x => x.id === pickD);
     $('#dname').textContent = `→ ${d.city}議員${d.name}（${d.areas.map(a => a.replace('區', '')).join('・')}）`;
     const nt = (d.notes || {})[S.area]; if (nt) $('#dname').innerHTML = esc($('#dname').textContent) + `<br><span class="sub">ℹ️ ${esc(nt)}</span>`;
+  };
+  app.querySelectorAll('.cy, .cbtn').forEach(x => {
+    x.onclick = () => openCity(x.dataset.c);
+    x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCity(x.dataset.c); } };
   });
   $('#go').onclick = () => {
     $('#go').disabled = true; $('#go').textContent = '載入中…';
     const area = S.area;
     getJSON(`data/district-${pickD}.json`).then(d => { D = d; S.area = area; D.intro ? introPage() : tagsPage(); }).catch(loadFail);
   };
-  if (prev) { const c = [...app.querySelectorAll('.chip:not(.soon)')].find(x => x.dataset.a === prev); if (c) { c.click(); c.scrollIntoView({ block: 'center' }); } }
+  const back = prev && IDX.districts.find(d => d.areas.includes(prev));
+  if (back) {
+    openCity(back.city);
+    const c = [...$('#areas').querySelectorAll('.chip:not(.soon)')].find(x => x.dataset.a === prev);
+    if (c) { pickArea(c); c.scrollIntoView({ block: 'center' }); }
+  } else if (cities.length === 1) openCity(cities[0]);   // ?d= 只開一個選區時，直接展開
 }
 
 // ---------- 同額競選說明（健檢模式的選區，點進來先看這頁；結算頁底部也有一份） ----------
@@ -271,7 +317,7 @@ function question() {
   app.innerHTML = `
   <div class="bar"><i style="width:${30 + 65 * S.qi / total}%"></i></div>
   <p class="sub">第 ${S.qi + 1} / ${total} 題${e.jar === 'V' ? '｜🧭 立場題' : ''}${e.egg ? '｜🥚 彩蛋題（不計分）' : ''}</p>
-  <div class="event">${esc(e.text)}</div>
+  <div class="event">${esc(e.text)}</div>${noteHTML(e)}
   <p class="sub">${e.egg ? '這題只有一張卡…' : need > 1 ? `選項比較多，這題要<b>選 ${need} 個</b>你最想要的` : '你最想要哪一個解方？'}</p>
   ${cards.map((c, i) => `<button class="opt" data-i="${i}">${esc(c.text)}</button>`).join('')}
   ${need > 1 ? `<button class="btn" id="ok" disabled>選好了（0 / ${need}）</button>` : ''}
@@ -320,7 +366,7 @@ function checkupQuestion(e, cards, total, redo) {
   app.innerHTML = `
   <div class="bar"><i style="width:${30 + 65 * S.qi / total}%"></i></div>
   <p class="sub">第 ${S.qi + 1} / ${total} 題｜🩺 政見健檢</p>
-  <div class="event">${esc(e.text)}</div>
+  <div class="event">${esc(e.text)}</div>${noteHTML(e)}
   <p class="sub">公報上寫的解方是這個，你需要嗎？</p>
   <div class="opt" style="cursor:default">${esc(cards[0].text)}</div>
   <div class="yn"><button class="btn${redo && redo.chosen.length ? '' : redo ? ' ghost' : ''}" id="yes">👍 想要</button>
