@@ -6,7 +6,7 @@
 <title>誰有時間看公報｜2026 議員選舉政見配對</title>
 <meta name="description" content="公報十幾個人、幾百條政見，誰有時間看？回答幾題生活小麻煩，看看哪幾位候選人的政見跟你最合。">
 <meta property="og:title" content="誰有時間看公報 🗳️">
-<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。新北第 1～13 選區・臺北第 5・6 選區">
+<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。新北第 1～13 選區・臺北第 1～8 選區">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://leeuniguana.github.io/bulletimeless/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -82,6 +82,16 @@ a{color:var(--main)}
 .map .cy:focus{outline:none}
 .map .cy:focus-visible{stroke:var(--ink);stroke-width:3}
 .map .none{fill:#ece3d4}
+.map .cy.pt{fill:#f4e7d8}
+.map .cy.pt:hover,.map .cy.pt.on{fill:#f1ddc8}
+.map .tw{fill:transparent;stroke:#fff;stroke-width:.8;cursor:pointer}
+.map .tw.op{fill:#f6c9a8;transition:fill .2s}
+.map .tw.op:hover{fill:#f2a87e}
+.map .tw.op.on{fill:#f2b48f}
+.map .tw.sel,.map .tw.op.sel{fill:var(--main)}
+.map text.dl{font-size:20px;font-weight:800;fill:var(--main);text-anchor:start;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
+.map text.pt.on{fill:var(--ink)}
+.map .ol{fill:none;stroke:#e8d3be;stroke-width:2;pointer-events:none}
 .map text{font-size:17px;font-weight:800;fill:var(--ink);text-anchor:middle;dominant-baseline:middle;pointer-events:none}
 .map text.none{fill:#b3a797;font-size:13px;font-weight:400}
 .map text.on{fill:#fff}
@@ -132,15 +142,17 @@ function closed() {
 
 // ---------- 開場 ----------
 const isAb = a => a.includes('原住民');   // 原住民選舉區不在地圖上（範圍是全市），放在行政區按鈕下方
-function home(prev) {
+function home(prev, prevD) {
   reset(); // prev：從標籤頁「← 換選區」回來時，先展開原本的城市、點好原本選的行政區
   const cities = [...new Set(IDX.districts.map(d => d.city))];
   const mapOK = MAP && MAP.cities;
+  const openAreas = new Set(IDX.districts.flatMap(d => d.areas));   // 已開放的行政區（地圖上色用）
   const mapHTML = !mapOK ? `<p class="sub">⚠️ 地圖載入失敗（${esc((MAP && MAP.error) || '沒有地圖資料')}），請用下面的按鈕選城市。</p>` :
     `<svg class="map" viewBox="-6 -6 ${MAP.w + 12} ${MAP.h + 12}" role="group" aria-label="選擇城市">${MAP.cities.map(c => cities.includes(c.name)
-      ? `<path class="cy" data-c="${esc(c.name)}" d="${c.d}" tabindex="0" role="button" aria-label="${esc(c.name)}"><title>${esc(c.name)}</title></path>`
+      ? `<path class="cy${c.towns ? ' pt' : ''}" data-c="${esc(c.name)}" d="${c.d}" tabindex="0" role="button" aria-label="${esc(c.name)}"><title>${esc(c.name)}</title></path>` +
+        (c.towns || []).map(t => `<path class="tw${openAreas.has(t.name) ? ' op' : ''}" data-c="${esc(c.name)}" data-a="${esc(t.name)}" d="${t.d}"><title>${esc(t.name)}${openAreas.has(t.name) ? '' : '（製作中）'}</title></path>`).join('') + (c.towns ? `<path class="ol" d="${c.d}"/>` : '')
       : `<path class="none" d="${c.d}"><title>${esc(c.name)}（還沒開放）</title></path>`).join('')}${MAP.cities.map(c =>
-      `<text class="${cities.includes(c.name) ? 'lb' : 'none'}" data-c="${esc(c.name)}" x="${c.label[0]}" y="${c.label[1]}">${esc(c.name)}</text>`).join('')}</svg>`;
+      `<text class="${cities.includes(c.name) ? 'lb' : 'none'}${c.towns ? ' pt' : ''}" data-c="${esc(c.name)}" x="${c.label[0]}" y="${c.label[1]}">${esc(c.name)}</text>`).join('')}</svg>`;
   app.innerHTML = `
   <p class="sub">${IDX.title}</p>
   <h1>誰有時間看公報 🗳️</h1>
@@ -148,9 +160,9 @@ function home(prev) {
   <p>回答幾題生活小麻煩，翻開<b>不具名</b>的解方卡，<br>玩完才揭曉誰的政見跟你最合。</p>
   <p class="sub">⏱️ 大約 5 分鐘｜📵 你的答案不會離開這台手機</p>
   <h2 style="margin-top:22px">你住哪一區？</h2>
-  <p class="sub">先點城市，再選行政區。人在外地、戶籍在這裡的話，選戶籍所在的區</p>
+  <p class="sub">先點地圖上的城市，再選行政區。人在外地、戶籍在這裡的話，選戶籍所在的區</p>
   ${mapHTML}
-  <div class="chips city">${cities.map(c => `<span class="chip cbtn" data-c="${esc(c)}">${esc(c)}</span>`).join('')}</div>
+  ${mapOK ? '' : `<div class="chips city">${cities.map(c => `<span class="chip cbtn" data-c="${esc(c)}" tabindex="0" role="button">${esc(c)}</span>`).join('')}</div>`}
   <div id="areas"></div>
   <p class="sub" id="dname"></p>
   <button class="btn" id="go" disabled>開始</button>`;
@@ -158,7 +170,7 @@ function home(prev) {
   const chip = (d, a) => `<span class="chip" data-d="${d.id}" data-a="${esc(a)}">${esc(a)}</span>`;
   const openCity = c => {
     app.querySelectorAll('[data-c]').forEach(x => x.classList.toggle('on', x.dataset.c === c));
-    S.area = null; pickD = null; $('#go').disabled = true; $('#dname').textContent = '';
+    S.area = null; pickD = null; $('#go').disabled = true; $('#dname').textContent = ''; mark(null);
     const ds = IDX.districts.filter(d => d.city === c);
     const nor = ds.flatMap(d => d.areas.filter(a => !isAb(a)).map(a => chip(d, a)));
     const ab = ds.flatMap(d => d.areas.filter(isAb).map(a => chip(d, a)));
@@ -174,7 +186,29 @@ function home(prev) {
     const d = IDX.districts.find(x => x.id === pickD);
     $('#dname').textContent = `→ ${d.city}議員${d.name}（${d.areas.map(a => a.replace('區', '')).join('・')}）`;
     const nt = (d.notes || {})[S.area]; if (nt) $('#dname').innerHTML = esc($('#dname').textContent) + `<br><span class="sub">ℹ️ ${esc(nt)}</span>`;
+    mark(d);
   };
+  // 地圖標示選區：亮起選區內所有行政區（原住民選區＝全市），在最大的行政區上寫「新北第X選區」
+  const mark = d => {
+    const svg = app.querySelector('svg.map'); if (!svg) return;
+    const old = svg.querySelector('#dl'); if (old) old.remove();
+    const ts = [...svg.querySelectorAll('.tw')];
+    ts.forEach(x => x.classList.remove('sel')); if (!d) return;
+    const whole = d.areas.some(isAb);
+    const hit = ts.filter(x => x.dataset.c === d.city && (whole || d.areas.includes(x.dataset.a)));
+    if (!hit.length) return;
+    hit.forEach(x => x.classList.add('sel'));
+    const x0 = 2, y0 = 14;   // 寫在地圖左上角的海面，不會蓋到城市名稱
+    const t = document.createElementNS(svg.namespaceURI, 'text');
+    t.setAttribute('class', 'dl'); t.id = 'dl'; t.setAttribute('x', x0); t.setAttribute('y', y0);
+    t.textContent = d.city.replace('市', '') + d.name.split(' ').join('');
+    svg.appendChild(t);
+  };
+  app.querySelectorAll('.tw').forEach(x => x.onclick = () => {
+    if (!x.classList.contains('on')) openCity(x.dataset.c);
+    const c = [...$('#areas').querySelectorAll('.chip:not(.soon)')].find(y => y.dataset.a === x.dataset.a);
+    if (c) pickArea(c);
+  });
   app.querySelectorAll('.cy, .cbtn').forEach(x => {
     x.onclick = () => openCity(x.dataset.c);
     x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCity(x.dataset.c); } };
@@ -184,7 +218,7 @@ function home(prev) {
     const area = S.area;
     getJSON(`data/district-${pickD}.json`).then(d => { D = d; S.area = area; D.intro ? introPage() : tagsPage(); }).catch(loadFail);
   };
-  const back = prev && IDX.districts.find(d => d.areas.includes(prev));
+  const back = prev && (IDX.districts.find(d => d.id === prevD && d.areas.includes(prev)) || IDX.districts.find(d => d.areas.includes(prev))); // 新北、臺北都有平地／山地原住民，要用選區代碼分
   if (back) {
     openCity(back.city);
     const c = [...$('#areas').querySelectorAll('.chip:not(.soon)')].find(x => x.dataset.a === prev);
@@ -212,7 +246,7 @@ function introPage() {
   <button class="btn" id="go">開始健檢</button>
   <button class="btn ghost" id="home">回首頁</button>`;
   $('#go').onclick = tagsPage;
-  $('#home').onclick = () => home(S.area);
+  $('#home').onclick = () => home(S.area, D.id);
   window.scrollTo(0, 0);
 }
 
@@ -221,12 +255,13 @@ function tagsPage() {
   app.innerHTML = `
   <div class="bar"><i style="width:10%"></i></div>
   <h2>你是哪一種斜槓人生？</h2>
+  ${D.warn ? `<div class="warn">⚠️ ${esc(D.warn)}</div>` : ''}
   <p class="sub">選出符合你的標籤，最多 ${MAX_TAGS} 個。可以同時是新手爸媽又是捷運受害者 😮‍💨</p>
   <div class="chips">${D.tags.map((t, i) => `<span class="chip${S.tags.includes(i) ? ' on' : ''}" data-i="${i}">${esc(t.name)}</span>`).join('')}</div>
   <p class="sub" id="cnt"></p>
   <button class="btn" id="go">下一步</button>
   <button class="btn ghost" id="chg">← 換選區</button>`;
-  $('#chg').onclick = () => home(S.area);
+  $('#chg').onclick = () => home(S.area, D.id);
   const upd = () => { $('#cnt').textContent = `已選 ${S.tags.length} / ${MAX_TAGS}`; $('#go').disabled = !S.tags.length; };
   app.querySelectorAll('.chip').forEach(c => c.onclick = () => {
     const i = +c.dataset.i, k = S.tags.indexOf(i);
@@ -524,6 +559,7 @@ function result() {
   <div class="bar"><i style="width:100%"></i></div>
   <h2>🎁 開盲盒！跟你最合的是…</h2>
   <p class="sub">${esc(D.title)}｜只比對公報上寫的內容，不代表候選人過去的實際表現，也不能取代你自己的判斷。</p>
+  ${D.warn ? `<div class="warn">⚠️ ${esc(D.warn)}</div>` : ''}
   ${top.map((c, r) => candHTML(c, r, false)).join('')}
   ${close ? '<div class="close">🤏 前兩名分數很接近，建議兩位的政見都看看。</div>' : ''}
   ${rest.length ? `<button class="btn ghost" id="all">看全部候選人（還有 ${rest.length} 位）</button><div id="allbox" class="hide">${rest.map((c, i) => candHTML(c, nShow + i, true)).join('')}</div>` : ''}
