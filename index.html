@@ -6,7 +6,7 @@
 <title>誰有時間看公報｜2026 議員選舉政見配對</title>
 <meta name="description" content="公報十幾個人、幾百條政見，誰有時間看？回答幾題生活小麻煩，看看哪幾位候選人的政見跟你最合。">
 <meta property="og:title" content="誰有時間看公報 🗳️">
-<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。新北第 1～13 選區・臺北第 1～8 選區">
+<meta property="og:description" content="這些政見不告訴你是誰的，玩完才揭曉。新北・臺北・桃園全部議員選區">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://leeuniguana.github.io/bulletimeless/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -89,6 +89,39 @@ a{color:var(--main)}
 .map .tw.op:hover{fill:#f2a87e}
 .map .tw.op.on{fill:#f2b48f}
 .map .tw.sel,.map .tw.op.sel{fill:var(--main)}
+.map .cy[data-c="新北市"]{fill:#f8d0c4}
+.map .cy[data-c="臺北市"]{fill:#e1cbc3}
+.map .cy[data-c="桃園市"]{fill:#f4dece}
+.map .cy:hover[data-c="新北市"]{fill:#f2a894}
+.map .cy:hover[data-c="臺北市"]{fill:#c9a092}
+.map .cy:hover[data-c="桃園市"]{fill:#eac2a4}
+.map .cy.on[data-c="新北市"]{fill:#e8613c}
+.map .cy.on[data-c="臺北市"]{fill:#9c5338}
+.map .cy.on[data-c="桃園市"]{fill:#d9905a}
+.map .cy.pt[data-c="新北市"]{fill:#fcece8}
+.map .cy.pt[data-c="臺北市"]{fill:#f3eae7}
+.map .cy.pt[data-c="桃園市"]{fill:#faf2eb}
+.map .cy.pt:hover[data-c="新北市"],.map .cy.pt.on[data-c="新北市"]{fill:#fbe3dc}
+.map .cy.pt:hover[data-c="臺北市"],.map .cy.pt.on[data-c="臺北市"]{fill:#ede0db}
+.map .cy.pt:hover[data-c="桃園市"],.map .cy.pt.on[data-c="桃園市"]{fill:#f8ebe1}
+.map .tw.op[data-c="新北市"]{fill:#f6c0b1}
+.map .tw.op[data-c="臺北市"]{fill:#d7baaf}
+.map .tw.op[data-c="桃園市"]{fill:#f0d3bd}
+.map .tw.op:hover[data-c="新北市"]{fill:#f09880}
+.map .tw.op:hover[data-c="臺北市"]{fill:#bf8f7e}
+.map .tw.op:hover[data-c="桃園市"]{fill:#e6b794}
+.map .tw.op.on[data-c="新北市"]{fill:#f2a894}
+.map .tw.op.on[data-c="臺北市"]{fill:#c9a092}
+.map .tw.op.on[data-c="桃園市"]{fill:#eac2a4}
+.map .tw.sel[data-c="新北市"],.map .tw.op.sel[data-c="新北市"]{fill:#e8613c}
+.map .tw.sel[data-c="臺北市"],.map .tw.op.sel[data-c="臺北市"]{fill:#9c5338}
+.map .tw.sel[data-c="桃園市"],.map .tw.op.sel[data-c="桃園市"]{fill:#d9905a}
+.map .ol[data-c="新北市"]{stroke:#f8d0c4}
+.map .ol[data-c="臺北市"]{stroke:#e1cbc3}
+.map .ol[data-c="桃園市"]{stroke:#f4dece}
+.map text.dl[data-c="新北市"]{fill:#e8613c}
+.map text.dl[data-c="臺北市"]{fill:#9c5338}
+.map text.dl[data-c="桃園市"]{fill:#d9905a}
 .map text.dl{font-size:20px;font-weight:800;fill:var(--main);text-anchor:start;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
 .map text.pt.on{fill:var(--ink)}
 .map .ol{fill:none;stroke:#e8d3be;stroke-width:2;pointer-events:none}
@@ -97,6 +130,12 @@ a{color:var(--main)}
 .map text.on{fill:#fff}
 .chips.city{justify-content:center;margin-top:6px}
 .ab{margin-top:14px;padding-top:10px;border-top:1px dashed var(--line)}
+.cmp{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0;table-layout:fixed}
+.cmp th,.cmp td{border:1px solid var(--line);padding:6px;vertical-align:top;text-align:left;word-break:break-word}
+.cmp th{background:var(--line)}
+.cmp td.j{font-weight:700;background:#fffaf2}
+.cmp ul{padding-left:16px;margin:0}
+.cmp .na{color:var(--sub)}
 </style>
 </head>
 <body>
@@ -150,7 +189,7 @@ function home(prev, prevD) {
   const mapHTML = !mapOK ? `<p class="sub">⚠️ 地圖載入失敗（${esc((MAP && MAP.error) || '沒有地圖資料')}），請用下面的按鈕選城市。</p>` :
     `<svg class="map" viewBox="-6 -6 ${MAP.w + 12} ${MAP.h + 12}" role="group" aria-label="選擇城市">${MAP.cities.map(c => cities.includes(c.name)
       ? `<path class="cy${c.towns ? ' pt' : ''}" data-c="${esc(c.name)}" d="${c.d}" tabindex="0" role="button" aria-label="${esc(c.name)}"><title>${esc(c.name)}</title></path>` +
-        (c.towns || []).map(t => `<path class="tw${openAreas.has(t.name) ? ' op' : ''}" data-c="${esc(c.name)}" data-a="${esc(t.name)}" d="${t.d}"><title>${esc(t.name)}${openAreas.has(t.name) ? '' : '（製作中）'}</title></path>`).join('') + (c.towns ? `<path class="ol" d="${c.d}"/>` : '')
+        (c.towns || []).map(t => `<path class="tw${openAreas.has(t.name) ? ' op' : ''}" data-c="${esc(c.name)}" data-a="${esc(t.name)}" d="${t.d}"><title>${esc(t.name)}${openAreas.has(t.name) ? '' : '（製作中）'}</title></path>`).join('') + (c.towns ? `<path class="ol" data-c="${esc(c.name)}" d="${c.d}"/>` : '')
       : `<path class="none" d="${c.d}"><title>${esc(c.name)}（還沒開放）</title></path>`).join('')}${MAP.cities.map(c =>
       `<text class="${cities.includes(c.name) ? 'lb' : 'none'}${c.towns ? ' pt' : ''}" data-c="${esc(c.name)}" x="${c.label[0]}" y="${c.label[1]}">${esc(c.name)}</text>`).join('')}</svg>`;
   app.innerHTML = `
@@ -200,7 +239,7 @@ function home(prev, prevD) {
     hit.forEach(x => x.classList.add('sel'));
     const x0 = 2, y0 = 14;   // 寫在地圖左上角的海面，不會蓋到城市名稱
     const t = document.createElementNS(svg.namespaceURI, 'text');
-    t.setAttribute('class', 'dl'); t.id = 'dl'; t.setAttribute('x', x0); t.setAttribute('y', y0);
+    t.setAttribute('class', 'dl'); t.id = 'dl'; t.dataset.c = d.city; t.setAttribute('x', x0); t.setAttribute('y', y0);
     t.textContent = d.city.replace('市', '') + d.name.split(' ').join('');
     svg.appendChild(t);
   };
@@ -240,9 +279,9 @@ function introPage() {
   app.innerHTML = `
   <div class="bar"><i style="width:5%"></i></div>
   <p class="sub">${esc(D.title)}</p>
-  <h2>ℹ️ 只有一位候選人，還需要投票嗎？</h2>
+  ${D.introText ? `<h2>ℹ️ ${esc(D.introTitle)}</h2>${D.introText.map(t => `<p>${t}</p>`).join('')}` : `<h2>ℹ️ 只有一位候選人，還需要投票嗎？</h2>
   <div class="law">${lawHTML()}</div>
-  <p>這一區只有一位候選人，沒辦法配對，所以改成<b>🩺 政見健檢</b>：先分配你的 100 元，再一張一張看公報上寫的政見，選「想要」或「不需要」，最後看看你在意的議題，公報涵蓋了幾成。</p>
+  <p>這一區只有一位候選人，沒辦法配對，所以改成<b>🩺 政見健檢</b>：先分配你的 100 元，再一張一張看公報上寫的政見，選「想要」或「不需要」，最後看看你在意的議題，公報涵蓋了幾成。</p>`}
   <button class="btn" id="go">開始健檢</button>
   <button class="btn ghost" id="home">回首頁</button>`;
   $('#go').onclick = tagsPage;
@@ -339,6 +378,10 @@ function buildQueue() {
     const egg = eggs[Math.floor(Math.random() * eggs.length)];
     q.push({ id: 'EGG', egg: true, text: egg.text, cards: [{ text: egg.card, cands: egg.cands, rows: egg.rows }] });
   }
+  if (D.extraQ && D.extraN) {   // 📌 還有這些做法：排在生活事件題後面、彩蛋前面
+    const eg = q.findIndex(x => x.egg), egg = eg >= 0 ? q.splice(eg, 1) : [];
+    q = q.concat(shuffle(D.extraQ).slice(0, D.extraN).map(x => ({ ...x, extra: true })), egg);
+  }
   S.queue = q; S.qi = 0; S.shown = {}; S.picked = {}; S.log = []; S.hist = []; S.order = {};
 }
 
@@ -347,13 +390,15 @@ function buildQueue() {
 function question() {
   const e = S.queue[S.qi];
   if (!e) return result();
-  const total = S.queue.length, need = e.pick || 1;
-  const cards = S.order[S.qi] || (S.order[S.qi] = e.egg ? e.cards : shuffle(e.cards));
+  const total = S.queue.length;
+  const cards = S.order[S.qi] || (S.order[S.qi] = e.egg ? e.cards : e.extra ? extraCards() : shuffle(e.cards));
+  if (e.extra && cards.length < 2) { S.hist.push({ qi: S.qi, cards: [], chosen: [] }); S.qi++; return question(); }   // 能放的卡不到 2 張就略過（不計分）
+  const need = e.extra ? 2 : (e.pick || 1);
   app.innerHTML = `
   <div class="bar"><i style="width:${30 + 65 * S.qi / total}%"></i></div>
-  <p class="sub">第 ${S.qi + 1} / ${total} 題${e.jar === 'V' ? '｜🧭 立場題' : ''}${e.egg ? '｜🥚 彩蛋題（不計分）' : ''}</p>
-  <div class="event">${esc(e.text)}</div>${noteHTML(e)}
-  <p class="sub">${e.egg ? '這題只有一張卡…' : need > 1 ? `選項比較多，這題要<b>選 ${need} 個</b>你最想要的` : '你最想要哪一個解方？'}</p>
+  <p class="sub">第 ${S.qi + 1} / ${total} 題${e.jar === 'V' ? '｜🧭 立場題' : ''}${e.egg ? '｜🥚 彩蛋題（不計分）' : ''}${e.extra ? '｜📌 還有這些做法' : ''}</p>
+  <div class="event">${e.extra ? `📌 ${esc(e.text)}：前面沒看過的做法，你最欣賞哪幾張？` : esc(e.text)}</div>${noteHTML(e)}
+  <p class="sub">${e.egg ? '這題只有一張卡…' : e.extra ? `每張卡是同一位候選人寫的幾條做法，<b>最多選 2 張</b>，只選 1 張也可以` : need > 1 ? `選項比較多，這題要<b>選 ${need} 個</b>你最想要的` : '你最想要哪一個解方？'}</p>
   ${cards.map((c, i) => `<button class="opt" data-i="${i}">${esc(c.text)}</button>`).join('')}
   ${need > 1 ? `<button class="btn" id="ok" disabled>選好了（0 / ${need}）</button>` : ''}
   ${e.egg ? '' : '<button class="btn ghost" id="skip">都不想要，跳過</button>'}
@@ -383,7 +428,7 @@ function question() {
   let sel = redo ? redo.chosen.map(c => cards.indexOf(c)).filter(i => i >= 0) : [];
   const upd = () => {
     opts.forEach((b, i) => b.classList.toggle('on', sel.includes(i)));
-    $('#ok').disabled = sel.length !== need; $('#ok').textContent = `選好了（${sel.length} / ${need}）`;
+    $('#ok').disabled = e.extra ? !sel.length : sel.length !== need; $('#ok').textContent = `選好了（${sel.length} / ${need}）`;
   };
   opts.forEach((b, i) => b.onclick = () => {
     const k = sel.indexOf(i);
@@ -413,6 +458,12 @@ function checkupQuestion(e, cards, total, redo) {
   $('#prev').onclick = goBack;
 }
 
+// 📌 還有這些做法的卡：同一場前面卡片已出現過的政見（權重 1）不再算；整張卡都出現過就不放；最多 6 張，先放本場出現次數少的人
+function extraCards() {
+  const seen = new Set(S.hist.flatMap(h => h.cards.flatMap(c => c.rows)));
+  const ok = D.extraQ.length && S.queue[S.qi].cards.filter(c => c.rows.some((r, i) => (c.w ? c.w[i] : 1) === 1 && !seen.has(r)));
+  return shuffle(ok).sort((a, b) => (S.shown[a.cands[0]] || 0) - (S.shown[b.cands[0]] || 0)).slice(0, 6);
+}
 function answer(e, cards, chosen) {
   cards.forEach(c => c.cands.forEach(n => S.shown[n] = (S.shown[n] || 0) + 1));
   chosen.forEach(c => { c.cands.forEach(n => S.picked[n] = (S.picked[n] || 0) + 1); S.log.push({ e, c }); });
@@ -426,6 +477,7 @@ function goBack() {
   if (!h) { coinsPage(); return; }          // 第 1 題再往回 → 回硬幣頁（回來會重新出題）
   h.cards.forEach(c => c.cands.forEach(n => S.shown[n]--));
   h.chosen.forEach(c => { c.cands.forEach(n => S.picked[n]--); S.log.pop(); });
+  if (!h.cards.length) { S.qi = h.qi; return goBack(); }   // 略過的做法題沒有畫面，直接再退一題
   S.qi = h.qi; S.redo = h; question();
 }
 
@@ -487,8 +539,19 @@ function candHTML(c, r, mini) {
 }
 
 // ---------- 健檢模式結算：不排名，顯示涵蓋率 ----------
+// 兩位候選人公報對照（不計分）：依議題罐分列，號次小的在左；沒寫的格子標「公報未提及」
+function compareHTML() {
+  const X = D.compare, cs = X.order.map(n => D.candidates.find(c => c.no === n)), unr = D.unranked || [];
+  const cell = (r, n) => { const xs = r.cols[n] || []; return xs.length ? `<ul>${xs.map(x => `<li>${x.type === 'B' ? '<span class="cat">過去成績</span>' : ''}${esc(x.t)}</li>`).join('')}</ul>` : '<span class="na">公報未提及</span>'; };
+  return `<div class="unr"><h3 style="margin:0 0 4px">📋 兩位候選人公報對照（不計分）</h3>
+  <p class="sub">依主題把兩位候選人公報上的內容並排，原文照錄。這不代表推薦任何人，投票前請以<a href="https://www.cec.gov.tw/" target="_blank" rel="noopener">公報原文</a>為準。</p>
+  ${cs.filter(c => unr.includes(c.no)).map(c => `<p class="sub">ℹ️ ${D.id}-${c.no} ${esc(c.name)}：${esc(X.unrNote)}</p>`).join('')}
+  <table class="cmp"><thead><tr><th style="width:22%">主題</th>${cs.map(c => `<th>${D.id}-${c.no} ${esc(c.name)}<br><small>${esc(c.party === '無' ? '無黨籍' : c.party)}</small></th>`).join('')}</tr></thead>
+  <tbody>${X.rows.map(r => `<tr><td class="j">${esc(r.jar)}</td>${cs.map(c => `<td>${cell(r, c.no)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+  ${D.ocrCands.length ? '<p class="sub">⚠️ 公報上的政見是圖片，以上文字經 OCR 辨識後已盡力核對，以公報原文為準。</p>' : ''}</div>`;
+}
 function checkupResult() {
-  const c = score()[0], pct = x => Math.round(x * 100) + '%', P = D.policies;
+  const c = score().filter(x => !(D.unranked || []).includes(x.no))[0], pct = x => Math.round(x * 100) + '%', P = D.policies;
   const mine = D.jars.map((j, i) => ({ name: j.name, coin: S.coins[j.k] || 0, has: c.prof[i] > 0 }));
   const ok = mine.filter(j => j.coin > 0 && j.has).sort((a, b) => b.coin - a.coin);
   const miss = mine.filter(j => j.coin > 0 && !j.has).sort((a, b) => b.coin - a.coin);
@@ -514,7 +577,7 @@ function checkupResult() {
     <details><summary>這個數字怎麼來的？</summary>
       <p><b>預算分 ${pct(c.budget)}</b>（佔一半）：你的硬幣分配跟公報的政見重心像不像。</p>
       <p><b>卡片分 ${pct(c.card)}</b>（佔一半）：一共 ${S.shown[c.no] || 0} 張卡，你選了 ${S.picked[c.no] || 0} 張「想要」。</p>
-      <p class="sub">算法跟其他選區的契合度一樣，只是這一區只有一位候選人，所以不排名。</p>
+      <p class="sub">算法跟其他選區的契合度一樣，只是這一區只有一位候選人${D.compare ? '能配對' : ''}，所以不排名。</p>
       ${want.length ? `<p>👍 你想要的：</p><ul>${want.map(x => li(x.c)).join('')}</ul>` : ''}
       ${notWant.length ? `<p>🙅 你覺得不需要的：</p><ul>${notWant.map(li).join('')}</ul>` : ''}
     </details>
@@ -533,7 +596,7 @@ function checkupResult() {
     <p>記得帶 ${esc(D.vote.bring)}</p>
     ${weekend ? '<p>🧳 週末才回家的人，這週記得回家喔！</p>' : ''}
   </div>
-  <details class="law"><summary>ℹ️ 只有一位候選人，還需要投票嗎？</summary>${lawHTML()}</details>
+  ${D.compare ? compareHTML() : `<details class="law"><summary>ℹ️ 只有一位候選人，還需要投票嗎？</summary>${lawHTML()}</details>`}
 
   <button class="btn" id="share">分享給朋友</button>
   <button class="btn ghost" id="again">再玩一次</button>
@@ -600,8 +663,9 @@ function bindResult() {
   if (m) $('#repo').href = `https://github.com/${m[1]}${location.pathname.replace(/\/[^/]*$/, '')}`;
   window.scrollTo(0, 0);
 }
-</script>
-  
+</script> 
+
 <!-- Cloudflare Web Analytics：只統計瀏覽次數、來源、裝置，不含任何作答內容 -->
-<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "fd943d3fa5364bf6ab456ea41fe956f1"}'></script><!-- End Cloudflare Web Analytics --></body>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "fd943d3fa5364bf6ab456ea41fe956f1"}'></script><!-- End Cloudflare Web Analytics -->
+</body>
 </html>
